@@ -616,7 +616,7 @@ def import_bundler(data_path, bundle_file, list_file, track_file,
             shot.pose.translation = t
             reconstruction.add_shot(shot)
         else:
-            print 'ignore failed image', shot_key
+            print ('ignore failed image', shot_key)
         offset += 5
 
     # tracks

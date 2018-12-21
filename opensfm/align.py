@@ -174,7 +174,7 @@ def get_horizontal_and_vertical_directions(R, orientation):
         return -R[1, :], -R[0, :], -R[2, :]
     if orientation == 8:
         return R[1, :], -R[0, :], R[2, :]
-    print 'ERROR unknown orientation {0}. Using 1 instead'.format(orientation)
+    print ('ERROR unknown orientation {0}. Using 1 instead'.format(orientation))
     return R[0, :], R[1, :], R[2, :]
 
 

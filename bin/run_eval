@@ -36,7 +36,7 @@ def align_reconstructions(rgt, r):
             X.append(r.shots[key].pose.get_origin())
             Xp.append(rgt.shots[key].pose.get_origin())
         else:
-            print 'Shot {0} missing.'.format(key)
+            print('Shot {0} missing.'.format(key))
     X = np.array(X)
     Xp = np.array(Xp)
     T = tf.superimposition_matrix(X.T, Xp.T, scale=True)
@@ -74,11 +74,11 @@ def eval_reconstruction(name, rgt, r):
     align_reconstructions(rgt, r)
     f = focal_length_rms(rgt, r)
     o = optical_center_rms(rgt, r)
-    print '#####################################################################'
-    print '# Evaluation for', name
-    print '#   Focal lenght RMS error:', f
-    print '#   Optical center RMS error:', o
-    print '#####################################################################'
+    print ('#####################################################################')
+    print ('# Evaluation for', name)
+    print ('#   Focal lenght RMS error:', f)
+    print ('#   Optical center RMS error:', o)
+    print ('#####################################################################')
     return {
         "focal_length_rms": f,
         "optical_center_rms": o,

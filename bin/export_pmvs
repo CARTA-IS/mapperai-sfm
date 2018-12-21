@@ -31,8 +31,8 @@ if __name__ == "__main__":
     else:
         base_output_path = os.path.join(data.data_path, 'pmvs')
 
-    print "Converting dataset [%s] to PMVS dir [%s]" % (
-        data.data_path, base_output_path)
+    #print( "Converting dataset [%s] to PMVS dir [%s]" % (
+    #    data.data_path, base_output_path))
 
     io.mkdir_p(base_output_path)
 
@@ -54,7 +54,7 @@ if __name__ == "__main__":
         reconstructions = data.load_reconstruction()
 
     for h, reconstruction in enumerate(reconstructions):
-        print "Reconstruction", h
+        print ("Reconstruction", h)
         output_path = os.path.join(base_output_path, "recon%d" % h)
         io.mkdir_p(output_path)
         io.mkdir_p(os.path.join(output_path, "visualize"))
@@ -70,7 +70,7 @@ if __name__ == "__main__":
         for image, i in shot_index.items():
             shot = reconstruction.shots[image]
             base = "%08d" % i
-            print "Image:", image, base
+            print ("Image:", image, base)
 
             # vis.dat for this image
             if use_vis_data:

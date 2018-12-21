@@ -80,7 +80,7 @@ if __name__ == "__main__":
             matches = data.find_matches(im1, im2)
             if len(matches) == 0:
                 continue
-            print 'plotting matches between', im1, im2
+            print ('plotting matches between', im1, im2)
 
             p1, f1, c1 = data.load_features(im1)
             p2, f2, c2 = data.load_features(im2)

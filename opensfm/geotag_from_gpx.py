@@ -195,11 +195,11 @@ def space_distance(a, b):
 def sample_gpx(points, dx, dt=None):
     if dt is not None:
         dx = float(dt)
-        print "Sampling GPX file every {0} seconds".format(dx)
+        print ("Sampling GPX file every {0} seconds".format(dx))
         distance = time_distance
         next_point = time_next_point
     else:
-        print "Sampling GPX file every {0} meters".format(dx)
+        print ("Sampling GPX file every {0} meters".format(dx))
         distance = space_distance
         next_point = space_next_point
 
@@ -213,7 +213,7 @@ def sample_gpx(points, dx, dt=None):
             key_points.append(a)
             assert np.fabs(dx - distance(key_points[-2], key_points[-1])) < 0.1
             dx_b = distance(key_points[-1], b)
-    print len(key_points), "points sampled"
+    print (len(key_points), "points sampled")
     return key_points
 
 
