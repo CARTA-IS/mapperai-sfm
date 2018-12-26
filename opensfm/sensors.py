@@ -3,7 +3,7 @@
 import string
 import json
 
-import context
+from opensfm import context
 
 with open(context.SENSOR,'rb') as f:
     sensor_data = json.loads(f.read())
