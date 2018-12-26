@@ -96,8 +96,8 @@ add_library(vl ${VLFEAT_SRCS})
 
 
 # Python wrapper
-add_library(csfm SHARED csfm.cc)
-target_link_libraries(csfm
+pybind11_add_module(csfm  csfm.cc akaze_bind.cc depthmap.cc)
+target_link_libraries(csfm PRIVATE
     ${OpenCV_LIBS}
     ${GFLAGS_LIBRARY}
     ${GLOG_LIBRARY}

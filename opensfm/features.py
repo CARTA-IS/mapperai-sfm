@@ -4,7 +4,7 @@ import time
 import logging
 import numpy as np
 import cv2
-import csfm
+from opensfm import csfm
 
 from opensfm import context
 
