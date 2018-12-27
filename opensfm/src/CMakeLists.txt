@@ -59,7 +59,7 @@ else()
     find_package(Boost 1.63 REQUIRED COMPONENTS python numpy)
 endif()
 
-set(Python_ADDITIONAL_VERSIONS "3.6")
+set(Python_ADDITIONAL_VERSIONS "2.7")
 find_package(PythonLibs REQUIRED)
 include_directories(${PYTHON_INCLUDE_DIRS})
 
@@ -97,7 +97,7 @@ add_library(vl ${VLFEAT_SRCS})
 
 # Python wrapper
 add_library(csfm SHARED  csfm.cc)
-target_link_libraries(csfm PRIVATE
+target_link_libraries(csfm 
     ${OpenCV_LIBS}
     ${GFLAGS_LIBRARY}
     ${GLOG_LIBRARY}
