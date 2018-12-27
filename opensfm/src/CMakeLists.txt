@@ -59,7 +59,7 @@ else()
     find_package(Boost 1.63 REQUIRED COMPONENTS python numpy)
 endif()
 
-set(Python_ADDITIONAL_VERSIONS "2.7")
+set(Python_ADDITIONAL_VERSIONS "3.6")
 find_package(PythonLibs REQUIRED)
 include_directories(${PYTHON_INCLUDE_DIRS})
 
