@@ -200,7 +200,7 @@ class DepthmapEstimator {
   void ComputePatchMatch(cv::Mat *best_depth, cv::Mat *best_plane, cv::Mat *best_score, cv::Mat *best_nghbr) {
     AssignMatrices(best_depth, best_plane, best_score, best_nghbr);
     RandomInitialization(best_depth, best_plane, best_score, best_nghbr, false);
-    ComputeIgnoreMask(best_depth, best_plane, best_score, best_nghbr);
+    //ComputeIgnoreMask(best_depth, best_plane, best_score, best_nghbr);
 
     for (int i = 0; i < patchmatch_iterations_; ++i) {
       PatchMatchForwardPass(best_depth, best_plane, best_score, best_nghbr, false);
@@ -211,7 +211,7 @@ class DepthmapEstimator {
   void ComputePatchMatchSample(cv::Mat *best_depth, cv::Mat *best_plane, cv::Mat *best_score, cv::Mat *best_nghbr) {
     AssignMatrices(best_depth, best_plane, best_score, best_nghbr);
     RandomInitialization(best_depth, best_plane, best_score, best_nghbr, true);
-    ComputeIgnoreMask(best_depth, best_plane, best_score, best_nghbr);
+    //ComputeIgnoreMask(best_depth, best_plane, best_score, best_nghbr);
 
     for (int i = 0; i < patchmatch_iterations_; ++i) {
       PatchMatchForwardPass(best_depth, best_plane, best_score, best_nghbr, true);
