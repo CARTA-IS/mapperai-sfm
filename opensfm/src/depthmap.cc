@@ -323,7 +323,7 @@ class DepthmapEstimator {
     }
 
     // Check random planes for current neighbor.
-    float depth_range = (max_depth-min_depth)/4;  //(1 / max_depth_ - 1 / min_depth_) / 20;
+    float depth_range = (max_depth_-min_depth_)/4;  //(1 / max_depth_ - 1 / min_depth_) / 20;
     float normal_range = 0.5;
     int current_nghbr = best_nghbr->at<int>(i, j);
     for (int k = 0; k < 6; ++k) {
