@@ -1,13 +1,17 @@
 
 import logging
+        inputImages[i].getBorders(borders);
 
 import cv2
 import numpy as np
+
+from plyfile import PlyData, PlyElement
 
 from opensfm import csfm
 from opensfm import log
 from opensfm import matching
 from opensfm.context import parallel_map
+
 
 
 logger = logging.getLogger(__name__)
@@ -199,8 +203,7 @@ def prune_depthmap(arguments):
 
     if data.config['depthmap_save_debug_files']:
         ply = point_cloud_to_ply(points, normals, colors)
-        with open(data._depthmap_file(shot.id, 'pruned.npz.ply'), 'w') as fout:
-            fout.write(ply)
+        ply.write(data._depthmap_path()+'/'+shot.id+'pruned.npz.ply')
 
 
 def merge_depthmaps(data, graph, reconstruction, neighbors):
@@ -222,8 +225,7 @@ def merge_depthmaps(data, graph, reconstruction, neighbors):
     colors = np.concatenate(colors)
 
     ply = point_cloud_to_ply(points, normals, colors)
-    with open(data._depthmap_path() + '/merged.ply', 'w') as fout:
-        fout.write(ply)
+    ply.write(data._depthmap_path() + '/merged.ply')
 
 
 def add_views_to_depth_estimator(data, neighbors, de):
@@ -368,29 +370,11 @@ def depthmap_to_ply(shot, depth, image):
 
 def point_cloud_to_ply(points, normals, colors):
     """Export depthmap points as a PLY string"""
-    vertices = []
-    for p, n, c in zip(points, normals, colors):
-        s = "{:.4f} {:.4f} {:.4f} {:.3f} {:.3f} {:.3f} {} {} {}".format(
-            p[0], p[1], p[2], n[0], n[1], n[2], int(c[0]), int(c[1]), int(c[2]))
-        vertices.append(s)
-
-    header = [
-        "ply",
-        "format ascii 1.0",
-        "element vertex {}".format(len(vertices)),
-        "property float x",
-        "property float y",
-        "property float z",
-        "property float nx",
-        "property float ny",
-        "property float nz",
-        "property uchar diffuse_red",
-        "property uchar diffuse_green",
-        "property uchar diffuse_blue",
-        "end_header",
-    ]
-
-    return '\n'.join(header + vertices + [''])
+    
+    vertices = np.concatenate((points, normals), axis=1)
+    vertices = np.concatenate((vertices, colors), axis=1)
+    vertices = np.apply_along_axis(lambda x:np.array((x[0].x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8]), dtype = [('x','f4'),('y','f4'),('z','f4'),('nx','f4'),('ny','f4'),('nz','f4'),('diffuse_red', 'u1'),('diffuse_green', 'u1'),('diffuse_blue', 'u1')]), 1, vertices)
+    return PlyData([PlyElement.describe(vertices, 'vertex')])
 
 
 def color_plane_normals(plane):
