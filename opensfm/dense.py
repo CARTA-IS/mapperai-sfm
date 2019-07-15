@@ -1,6 +1,5 @@
 
 import logging
-        inputImages[i].getBorders(borders);
 
 import cv2
 import numpy as np
