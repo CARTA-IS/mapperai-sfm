@@ -578,18 +578,23 @@ class DepthmapPruner {
           cv::Vec3d reprojection = Project(point, Ks_[other], Rs_[other], ts_[other]);
           int iu = int(reprojection(0) / reprojection(2) + 0.5f);
           int iv = int(reprojection(1) / reprojection(2) + 0.5f);
-          float depth_of_point = reprojection(2);
+          float depth_of_point = reprojection(2);                         //lambdavalue
           if (!IsInsideImage(depths_[other], iv, iu)) {
             continue;
           }
-          float depth_at_reprojection = depths_[other].at<float>(iv, iu);
+          float depth_at_reprojection = depths_[other].at<float>(iv, iu);  // d value 
+          if(depth_at_reprojection < depth_of_point ){ //occlusion case
+              depths_[other].at<float>(iu, iv) = 0;
+          }
+
           if (depth_at_reprojection > (1 - same_depth_threshold_) * depth_of_point) {       //compare threshold with diffence between depth and w value
+            depths_[other].at<float>(iv, iu) = 0;   //prune neighbor's depth 
             cv::Vec3f normal_at_reprojection = cv::normalize(planes_[other].at<cv::Vec3f>(iv, iu));
             float area_at_reprojection = -normal_at_reprojection(2) / depth_at_reprojection * Ks_[other](0, 0);
-            if (area_at_reprojection > area) {
+            /*if (area_at_reprojection > area){     //if neighbor can project to wider area than quit the copy process.
               keep = false;
               break;
-            }
+            }*/
           }
         }
         if (keep) {
