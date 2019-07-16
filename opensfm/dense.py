@@ -372,7 +372,7 @@ def point_cloud_to_ply(points, normals, colors):
     
     vertices = np.concatenate((points, normals), axis=1)
     vertices = np.concatenate((vertices, colors), axis=1)
-    vertices = np.apply_along_axis(lambda x:np.array((x[0].x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8]), dtype = [('x','f4'),('y','f4'),('z','f4'),('nx','f4'),('ny','f4'),('nz','f4'),('diffuse_red', 'u1'),('diffuse_green', 'u1'),('diffuse_blue', 'u1')]), 1, vertices)
+    vertices = np.apply_along_axis(lambda x:np.array((x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8]), dtype = [('x','f4'),('y','f4'),('z','f4'),('nx','f4'),('ny','f4'),('nz','f4'),('diffuse_red', 'u1'),('diffuse_green', 'u1'),('diffuse_blue', 'u1')]), 1, vertices)
     return PlyData([PlyElement.describe(vertices, 'vertex')])
 
 
