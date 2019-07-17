@@ -304,21 +304,24 @@ class DepthmapEstimator {
 
     // Check neighbors and their planes for adjacent pixels.
     for (int k = 0; k < 2; ++k) {
-      int i_adjacent = i + adjacent[k][0];
-      int j_adjacent = j + adjacent[k][1];
+      for(int w = 0 ; w < 2; ++w) {        //fix neighbor propagation method
+        int i_adjacent = i + adjacent[k][w];
+        int j_adjacent = j + adjacent[k][w];
+        if(k==0 && w==0)
+            continue;
+        // Do not propagate ignored adjacent pixels.
+        if (best_depth->at<float>(i_adjacent, j_adjacent) == 0.0f) {
+          continue;
+        }
 
-      // Do not propagate ignored adjacent pixels.
-      if (best_depth->at<float>(i_adjacent, j_adjacent) == 0.0f) {
-        continue;
-      }
+        cv::Vec3f plane = best_plane->at<cv::Vec3f>(i_adjacent, j_adjacent);
 
-      cv::Vec3f plane = best_plane->at<cv::Vec3f>(i_adjacent, j_adjacent);
-
-      if (sample) {
-        int nghbr = best_nghbr->at<int>(i_adjacent, j_adjacent);
-        CheckPlaneImageCandidate(best_depth, best_plane, best_score, best_nghbr, i, j, plane, nghbr);
-      } else {
-        CheckPlaneCandidate(best_depth, best_plane, best_score, best_nghbr, i, j, plane);
+        if (sample) {
+          int nghbr = best_nghbr->at<int>(i_adjacent, j_adjacent);
+          CheckPlaneImageCandidate(best_depth, best_plane, best_score, best_nghbr, i, j, plane, nghbr);
+        } else {
+          CheckPlaneCandidate(best_depth, best_plane, best_score, best_nghbr, i, j, plane);
+        }
       }
     }
 
