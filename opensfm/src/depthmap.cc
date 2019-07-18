@@ -305,9 +305,9 @@ class DepthmapEstimator {
     // Check neighbors and their planes for adjacent pixels.
     for (int k = 0; k < 2; ++k) {
       for(int w = 0 ; w < 2; ++w) {        //fix neighbor propagation method
-        int i_adjacent = i + adjacent[k][w];
-        int j_adjacent = j + adjacent[k][w];
-        if(k==0 && w==0)
+        int i_adjacent = i + adjacent[k][0];
+        int j_adjacent = j + adjacent[w][0];
+        if(i==i_adjacent && j==j_adjacent)
             continue;
         // Do not propagate ignored adjacent pixels.
         if (best_depth->at<float>(i_adjacent, j_adjacent) == 0.0f) {
