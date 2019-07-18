@@ -583,18 +583,19 @@ class DepthmapPruner {
             continue;
           }
           float depth_at_reprojection = depths_[other].at<float>(iv, iu);  // d value 
-          if(depth_at_reprojection < depth_of_point ){ //occlusion case
-              depths_[other].at<float>(iv, iu) = 0;
-          }
-
+         
           if (depth_at_reprojection > (1 - same_depth_threshold_) * depth_of_point) {       //compare threshold with diffence between depth and w value
-            depths_[other].at<float>(iv, iu) = 0;   //prune neighbor's depth 
             cv::Vec3f normal_at_reprojection = cv::normalize(planes_[other].at<cv::Vec3f>(iv, iu));
             float area_at_reprojection = -normal_at_reprojection(2) / depth_at_reprojection * Ks_[other](0, 0);
-            /*if (area_at_reprojection > area){     //if neighbor can project to wider area than quit the copy process.
+            
+            if (area_at_reprojection > area){     //if neighbor can project to wider area than quit the copy process.
               keep = false;
               break;
-            }*/
+            }
+          }
+          if(depth_at_reprojection > depth_of_point){   //can't change neighbor value so change logic to remove occluded target cam.
+              keep =false;
+              break;
           }
         }
         if (keep) {
