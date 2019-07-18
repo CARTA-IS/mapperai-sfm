@@ -584,7 +584,7 @@ class DepthmapPruner {
           }
           float depth_at_reprojection = depths_[other].at<float>(iv, iu);  // d value 
           if(depth_at_reprojection < depth_of_point ){ //occlusion case
-              depths_[other].at<float>(iu, iv) = 0;
+              depths_[other].at<float>(iv, iu) = 0;
           }
 
           if (depth_at_reprojection > (1 - same_depth_threshold_) * depth_of_point) {       //compare threshold with diffence between depth and w value
