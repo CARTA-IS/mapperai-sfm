@@ -331,7 +331,12 @@ class DepthmapEstimator {
     int current_nghbr = best_nghbr->at<int>(i, j);
     for (int k = 0; k < 6; ++k) {
       float current_depth = best_depth->at<float>(i, j);
+      
       float depth = 1 / (1 / current_depth + UniformRand(-depth_range, depth_range));
+      while(depth < min_depth_ || depth > max_depth_){
+          depth = 1 / (1 / current_depth + UniformRand(-depth_range, depth_range));
+          printf("the depth is out of range : %f \n", depth);
+      }
 
       cv::Vec3f current_plane = best_plane->at<cv::Vec3f>(i, j);
       cv::Vec3f normal(-current_plane(0) / current_plane(2) + UniformRand(-normal_range, normal_range),
