@@ -326,17 +326,23 @@ class DepthmapEstimator {
     }
 
     // Check random planes for current neighbor.
-    float depth_range = (1 / max_depth_ - 1 / min_depth_) / 20;
+    //float depth_range = (1 / max_depth_ - 1 / min_depth_) / 20;
+    float depth_range = (max_depth_ - min_depth_)/4;
     float normal_range = 0.26;
     int current_nghbr = best_nghbr->at<int>(i, j);
     for (int k = 0; k < 6; ++k) {
       float current_depth = best_depth->at<float>(i, j);
-      
+      float depth = current_depth + UniformRand(-depth_range, depth_range);
+      while(depth < min_depth_ || depth >max_depth_){
+          depth = current_depth + UniformRand(-depth_range, depth_range);
+          printf("the depth is out of range : %f min: %f max :%f\n", depth, min_depth_, max_depth_);
+      }
+      /* 
       float depth = 1 / (1 / current_depth + UniformRand(-depth_range, depth_range));
       while(depth < min_depth_ || depth > max_depth_){
           depth = 1 / (1 / current_depth + UniformRand(-depth_range, depth_range));
           printf("the depth is out of range : %f min: %f max :%f\n", depth, min_depth_, max_depth_);
-      }
+      }*/
       printf("pass\n");
 
       cv::Vec3f current_plane = best_plane->at<cv::Vec3f>(i, j);
