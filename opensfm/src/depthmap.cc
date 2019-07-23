@@ -335,7 +335,7 @@ class DepthmapEstimator {
       float depth = current_depth + UniformRand(-depth_range, depth_range);
       while(depth < (min_depth_*0.8) || depth >(max_depth_ * 1.2)){
           depth = current_depth + UniformRand(-depth_range, depth_range);
-          printf("the depth is out of range : %f min: %f max :%f\n", depth, min_depth_, max_depth_);
+         //printf("the depth is out of range : %f min: %f max :%f\n", depth, min_depth_, max_depth_);
       }
       /* 
       float depth = 1 / (1 / current_depth + UniformRand(-depth_range, depth_range));
@@ -343,7 +343,7 @@ class DepthmapEstimator {
           depth = 1 / (1 / current_depth + UniformRand(-depth_range, depth_range));
           printf("the depth is out of range : %f min: %f max :%f\n", depth, min_depth_, max_depth_);
       }*/
-      printf("pass\n");
+      //printf("pass\n");
 
       cv::Vec3f current_plane = best_plane->at<cv::Vec3f>(i, j);
       cv::Vec3f normal(-current_plane(0) / current_plane(2) + UniformRand(-normal_range, normal_range),
