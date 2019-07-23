@@ -333,8 +333,10 @@ class DepthmapEstimator {
     for (int k = 0; k < 6; ++k) {
       float current_depth = best_depth->at<float>(i, j);
       float depth = current_depth + UniformRand(-depth_range, depth_range);
-      while(depth < (min_depth_*0.8) || depth >(max_depth_ * 1.2)){
+      int count =5;
+      while((depth < (min_depth_-depth_range) || depth >(max_depth_+depth_range))&& count >0){
           depth = current_depth + UniformRand(-depth_range, depth_range);
+          count--;
          //printf("the depth is out of range : %f min: %f max :%f\n", depth, min_depth_, max_depth_);
       }
       /* 
