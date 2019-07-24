@@ -138,7 +138,7 @@ float UniformRand(float a, float b) {
 class DepthmapEstimator {
  public:
   DepthmapEstimator()
-    : patch_size_(7)
+    : patch_size_(9)          //chage to 9
     , min_depth_(0)
     , max_depth_(0)
     , num_depth_planes_(50)
@@ -333,12 +333,7 @@ class DepthmapEstimator {
     for (int k = 0; k < 6; ++k) {
       float current_depth = best_depth->at<float>(i, j);
       float depth = current_depth + UniformRand(-depth_range, depth_range);
-      int count =5;
-      while((depth < (min_depth_-depth_range) || depth >(max_depth_+depth_range))&& count >0){
-          depth = current_depth + UniformRand(-depth_range, depth_range);
-          count--;
-         //printf("the depth is out of range : %f min: %f max :%f\n", depth, min_depth_, max_depth_);
-      }
+      
       /* 
       float depth = 1 / (1 / current_depth + UniformRand(-depth_range, depth_range));
       while(depth < min_depth_ || depth > max_depth_){
