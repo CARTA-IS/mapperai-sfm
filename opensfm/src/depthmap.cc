@@ -135,6 +135,8 @@ float UniformRand(float a, float b) {
   return a + (b - a) * float(rand()) / RAND_MAX;
 }
 
+
+
 class DepthmapEstimator {
  public:
   DepthmapEstimator()
@@ -228,9 +230,13 @@ class DepthmapEstimator {
 
   void RandomInitialization(cv::Mat *best_depth, cv::Mat *best_plane, cv::Mat *best_score, cv::Mat *best_nghbr, bool sample) {
     int hpz = (patch_size_ - 1) / 2;
+
+    std::default_random_engine generator;
+    std::normal_distribution<double> distribution(min_depth_, max_depth_);
     for (int i = hpz; i < best_depth->rows - hpz; ++i) {
       for (int j = hpz; j < best_depth->cols - hpz; ++j) {
-        float depth = UniformRand(min_depth_, max_depth_);
+
+        float depth = distribution(generator); //UniformRand(min_depth_, max_depth_);
         cv::Vec3f normal(UniformRand(-1, 1), UniformRand(-1, 1), -1);
         cv::Vec3f plane = PlaneFromDepthAndNormal(j, i, Ks_[0], depth, normal);
         int nghbr;
