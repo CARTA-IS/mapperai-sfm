@@ -1,5 +1,5 @@
 #include <random>
-
+#include <math.h>
 #include <opencv2/opencv.hpp>
 
 namespace csfm {
@@ -148,6 +148,9 @@ class DepthmapEstimator {
     , min_patch_variance_(5 * 5)
     , rng_{std::random_device{}()}
     , uni_(0, 0)
+    , normalizationA(0.45)
+    , gamma(0.999)
+    , dist_sigma(0.45)
   {}
 
   void AddView(const double *pK,
@@ -164,6 +167,7 @@ class DepthmapEstimator {
     as_.emplace_back(Qs_.back() * ts_.front() - ts_.back());
     images_.emplace_back(cv::Mat(height, width, CV_8U, (void *)pimage).clone());
     std::size_t size = images_.size();
+    betas_.emplace_back(cv::Mat(height, width, CV_64F));      //set to neighbors size.
     int a = (size > 1) ? 1 : 0;
     int b = (size > 1) ? size - 1 : 0;
     uni_.param(std::uniform_int_distribution<int>::param_type(a, b));
@@ -204,9 +208,18 @@ class DepthmapEstimator {
     RandomInitialization(best_depth, best_plane, best_score, best_nghbr, false);
     ComputeIgnoreMask(best_depth, best_plane, best_score, best_nghbr);
 
+    // compute beta
+    int hpz = (patch_size_-1)/2;
+    for(int i = 0; i < best_plane->rows; i++){
+        for(int j = best_plane->cols-hpz-1; j >= hpz; j--){
+            cv::Vec3f plane = best_plane->at<cv::Vec3f>(i, j);
+            ComputeAlphaBeta(i, j, plane, 1);
+        }
+    }
+    
     for (int i = 0; i < patchmatch_iterations_; ++i) {
-      PatchMatchForwardPass(best_depth, best_plane, best_score, best_nghbr, false);
-      PatchMatchBackwardPass(best_depth, best_plane, best_score, best_nghbr, false);
+      PatchMatchForwardPass(best_depth, best_plane, best_score, best_nghbr, false, i%2);
+      PatchMatchBackwardPass(best_depth, best_plane, best_score, best_nghbr, false, i%2);
     }
   }
 
@@ -215,9 +228,18 @@ class DepthmapEstimator {
     RandomInitialization(best_depth, best_plane, best_score, best_nghbr, true);
     ComputeIgnoreMask(best_depth, best_plane, best_score, best_nghbr);
 
+    // compute beta
+    int hpz = (patch_size_-1)/2;
+    for(int i = 0; i < best_plane->rows; i++){
+        for(int j = best_plane->cols-hpz-1; j >= hpz; j--){
+            cv::Vec3f plane = best_plane->at<cv::Vec3f>(i, j);
+            ComputeAlphaBeta(i, j, plane, 1);
+        }
+    }
+
     for (int i = 0; i < patchmatch_iterations_; ++i) {
-      PatchMatchForwardPass(best_depth, best_plane, best_score, best_nghbr, true);
-      PatchMatchBackwardPass(best_depth, best_plane, best_score, best_nghbr, true);
+      PatchMatchForwardPass(best_depth, best_plane, best_score, best_nghbr, true, i%2);
+      PatchMatchBackwardPass(best_depth, best_plane, best_score, best_nghbr, true, i%2);
     }
   }
 
@@ -241,6 +263,7 @@ class DepthmapEstimator {
         cv::Vec3f plane = PlaneFromDepthAndNormal(j, i, Ks_[0], depth, normal);
         int nghbr;
         float score;
+
         if (sample) {
           nghbr = uni_(rng_);
           score = ComputePlaneImageScore(i, j, plane, nghbr);
@@ -278,8 +301,11 @@ class DepthmapEstimator {
 
 
   void PatchMatchForwardPass(cv::Mat *best_depth, cv::Mat *best_plane, cv::Mat *best_score, cv::Mat *best_nghbr,
-                             bool sample) {
-    int adjacent[2][2] = {{-1, 0}, {0, -1}};
+                             bool sample, int oddCheck) {
+    int adjacent[2] = {1, 0};
+    if (oddCheck)
+      adjacent = {0, 1};
+
     int hpz = (patch_size_ - 1) / 2;
     for (int i = hpz; i < best_depth->rows - hpz; ++i) {
       for (int j = hpz; j < best_depth->cols - hpz; ++j) {
@@ -289,8 +315,10 @@ class DepthmapEstimator {
   }
 
   void PatchMatchBackwardPass(cv::Mat *best_depth, cv::Mat *best_plane, cv::Mat *best_score, cv::Mat *best_nghbr,
-                              bool sample) {
-    int adjacent[2][2] = {{0, 1}, {1, 0}};
+                              bool sample, int oddCheck) {
+    int adjacent[2] = {-1, 0};
+    if(oddCheck)
+        adjacent = {0, -1};
     int hpz = (patch_size_ - 1) / 2;
     for (int i = best_depth->rows - hpz - 1; i >= hpz; --i) {
       for (int j = best_depth->cols - hpz - 1; j >= hpz; --j) {
@@ -301,31 +329,33 @@ class DepthmapEstimator {
 
   void PatchMatchUpdatePixel(cv::Mat *best_depth, cv::Mat *best_plane, cv::Mat *best_score, cv::Mat *best_nghbr,
                              int i, int j,
-                             int adjacent[2][2],
+                             int adjacent[2],
                              bool sample) {
+
     // Ignore pixels with depth == 0.
     if (best_depth->at<float>(i, j) == 0.0f) {
       return;
     }
 
+    cv::Vec3f plane = best_plane->at<cv::Vec3f>(i, j);
+    ComputeAlphaBeta(i, j, best_plane, 3);
+
     // Check neighbors and their planes for adjacent pixels.
-    for (int k = 0; k < 2; ++k) {
-      int i_adjacent = i + adjacent[k][0];
-      int j_adjacent = j + adjacent[k][1];
+    int i_adjacent = i + adjacent[0];
+    int j_adjacent = j + adjacent[1];
 
       // Do not propagate ignored adjacent pixels.
-      if (best_depth->at<float>(i_adjacent, j_adjacent) == 0.0f) {
+    if (best_depth->at<float>(i_adjacent, j_adjacent) == 0.0f) {
         continue;
-      }
+    }
 
-      cv::Vec3f plane = best_plane->at<cv::Vec3f>(i_adjacent, j_adjacent);
+    cv::Vec3f plane = best_plane->at<cv::Vec3f>(i_adjacent, j_adjacent);
 
-      if (sample) {
-        int nghbr = best_nghbr->at<int>(i_adjacent, j_adjacent);
-        CheckPlaneImageCandidate(best_depth, best_plane, best_score, best_nghbr, i, j, plane, nghbr);
-      } else {
-        CheckPlaneCandidate(best_depth, best_plane, best_score, best_nghbr, i, j, plane);
-      }
+    if (sample) {
+      int nghbr = best_nghbr->at<int>(i_adjacent, j_adjacent);
+      CheckPlaneImageCandidate(best_depth, best_plane, best_score, best_nghbr, i, j, plane, nghbr);
+    } else {
+      CheckPlaneCandidate(best_depth, best_plane, best_score, best_nghbr, i, j, plane);
     }
 
     // Check random planes for current neighbor.
@@ -394,6 +424,40 @@ class DepthmapEstimator {
       best_nghbr->at<int>(i, j) = nghbr;
   }
 
+/////generate beta
+  void ComputeAlphaBeta(int i, int j, const cv::Vec3f &plane, int betaCheck){
+      for (int other =1; other < images_size(); ++other){
+          float image_score = ComputePlaneImageScore(i, j, plane, other);
+          if(betaCheck == 1){ //if it's beta
+              float old_beta =1;
+              int hpz = (patch_size_-1)/2;
+              if( j+1 < betas.at(other).size().width-hpz-1) //not end of row
+                old_beta = betas_.at(other)[i][j+1];
+
+              prob_z1 = exp(-pow(1-image_score, 2.0)/(2*dist_sigma*dist_sigma)) / normalizationA;
+              prob_z0 = 0.5;    //didn't add N as the thesis.
+          
+              float beta = (prob_z0*gamma + prob_z1*(1-gamma) + prob_z0*(1-gamma) + prob_z1*gamma) * old_beta
+              betas_.at(other)[i][j] = beta;
+          }
+          else if(betaCheck == 2||betaCheck ==3){      //if it is alpha
+              float old_alpha = 1;
+              int hpz = (patch_size_-1)/2;
+              if(j-1 > hpz)
+                  old_alpha = alphas_at.(other)[i][j-1];
+              prob_z0 = 0.5;
+              prob_z1 = exp(-pow(1-image_score, 2.0)/(2*dist_sigma*dist_sigma))/normalizationA;
+              if(betaCheck ==3){    //compute q(Z)
+
+              }
+          }
+          else{
+              printf("the bool check for alpha beta is weird!!!\n");
+          }
+      }
+  }
+
+
   void ComputePlaneScore(int i, int j, const cv::Vec3f &plane, float *score, int *nghbr) {
     *score = -1.0f;
     *nghbr = 0;
@@ -459,6 +523,8 @@ class DepthmapEstimator {
 
 
  private:
+  std::vector<cv::Mat> betas_;
+  std::vector<cv::Mat> alphas_;
   std::vector<cv::Mat> images_;
   std::vector<cv::Matx33d> Ks_;
   std::vector<cv::Matx33d> Rs_;
@@ -473,6 +539,10 @@ class DepthmapEstimator {
   float min_patch_variance_;
   std::mt19937 rng_;
   std::uniform_int_distribution<int> uni_;
+  //for the bayesian method.
+  float gamma;
+  float dist_sigma;
+  float normalizationA;
 };
 
 
