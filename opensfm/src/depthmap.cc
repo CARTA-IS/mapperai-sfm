@@ -231,7 +231,7 @@ class DepthmapEstimator {
     for (int i = hpz; i < best_depth->rows - hpz; ++i) {
       for (int j = hpz; j < best_depth->cols - hpz; ++j) {
         float depth = UniformRand(min_depth_, max_depth_);
-        cv::Vec3f normal(UniformRand(-1, 1), UniformRand(-1, 1), -1);
+        cv::Vec3f normal(0 ,0,-1); //UniformRand(-1, 1), UniformRand(-1, 1), -1);
         cv::Vec3f plane = PlaneFromDepthAndNormal(j, i, Ks_[0], depth, normal);
         int nghbr;
         float score;
@@ -328,7 +328,7 @@ class DepthmapEstimator {
     // Check random planes for current neighbor.
     //float depth_range = (1 / max_depth_ - 1 / min_depth_) / 20;
     float depth_range = (max_depth_ - min_depth_)/4;
-    float normal_range = 0.26;
+    float normal_range = 0.0;
     int current_nghbr = best_nghbr->at<int>(i, j);
     for (int k = 0; k < 6; ++k) {
       float current_depth = best_depth->at<float>(i, j);
@@ -343,10 +343,11 @@ class DepthmapEstimator {
       //printf("pass\n");
 
       cv::Vec3f current_plane = best_plane->at<cv::Vec3f>(i, j);
-      cv::Vec3f normal(-current_plane(0) / current_plane(2) + UniformRand(-normal_range, normal_range),
+    /*  cv::Vec3f normal(-current_plane(0) / current_plane(2) + UniformRand(-normal_range, normal_range),
                        -current_plane(1) / current_plane(2) + UniformRand(-normal_range, normal_range),
                        -1.0f);
-
+*/
+      cv::Vec3f normal(0.0f, 0.0f, -1.0f);
       cv::Vec3f plane = PlaneFromDepthAndNormal(j, i, Ks_[0], depth, normal);
       if (sample) {
         CheckPlaneImageCandidate(best_depth, best_plane, best_score, best_nghbr, i, j, plane, current_nghbr);
