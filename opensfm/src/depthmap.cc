@@ -167,7 +167,9 @@ class DepthmapEstimator {
     as_.emplace_back(Qs_.back() * ts_.front() - ts_.back());
     images_.emplace_back(cv::Mat(height, width, CV_8U, (void *)pimage).clone());
     std::size_t size = images_.size();
-    betas_.emplace_back(cv::Mat(height, width, CV_64F));      //set to neighbors size.
+    betas_.emplace_back(cv::Mat(height, width, CV_64FC2));      //set to neighbors size.
+    alphas_.emplace_back(cv::Mat(height, width, CV_64FC2));
+    qMats_.emplace_back(cv::Mat(height, width, CV_64F));
     int a = (size > 1) ? 1 : 0;
     int b = (size > 1) ? size - 1 : 0;
     uni_.param(std::uniform_int_distribution<int>::param_type(a, b));
@@ -338,7 +340,7 @@ class DepthmapEstimator {
     }
 
     cv::Vec3f plane = best_plane->at<cv::Vec3f>(i, j);
-    ComputeAlphaBeta(i, j, best_plane, 3);
+    ComputeAlphaBeta(i, j, plane, 3);
 
     // Check neighbors and their planes for adjacent pixels.
     int i_adjacent = i + adjacent[0];
@@ -355,7 +357,7 @@ class DepthmapEstimator {
       int nghbr = best_nghbr->at<int>(i_adjacent, j_adjacent);
       CheckPlaneImageCandidate(best_depth, best_plane, best_score, best_nghbr, i, j, plane, nghbr);
     } else {
-      CheckPlaneCandidate(best_depth, best_plane, best_score, best_nghbr, i, j, plane);
+      CheckPlaneCandidateAlpha(best_depth, best_plane, best_score, best_nghbr, i, j, plane);
     }
 
     // Check random planes for current neighbor.
@@ -375,18 +377,22 @@ class DepthmapEstimator {
       if (sample) {
         CheckPlaneImageCandidate(best_depth, best_plane, best_score, best_nghbr, i, j, plane, current_nghbr);
       } else {
-        CheckPlaneCandidate(best_depth, best_plane, best_score, best_nghbr, i, j, plane);
+        CheckPlaneCandidateAlpha(best_depth, best_plane, best_score, best_nghbr, i, j, plane);
       }
 
       depth_range *= 0.5;
       normal_range *= 0.5;
     }
 
+    cv::Vec3f plane = best_plane->at<cv::Vec3f>(i, j);
+    ComputeAlphaBeta(i, j, plane, 2);
+
     if (!sample || images_.size() <= 2) {
       return;
     }
 
     // Check random other neighbor for current plane.
+    /*
     int other_nghbr = uni_(rng_);
     while (other_nghbr == current_nghbr) {
       other_nghbr = uni_(rng_);
@@ -394,6 +400,7 @@ class DepthmapEstimator {
 
     cv::Vec3f plane = best_plane->at<cv::Vec3f>(i, j);
     CheckPlaneImageCandidate(best_depth, best_plane, best_score, best_nghbr, i, j, plane, other_nghbr);
+    */
   }
 
   void CheckPlaneCandidate(cv::Mat *best_depth, cv::Mat *best_plane, cv::Mat *best_score, cv::Mat *best_nghbr,
@@ -405,6 +412,17 @@ class DepthmapEstimator {
       float depth = DepthOfPlaneBackprojection(j, i, Ks_[0], plane);
       AssignPixel(best_depth, best_plane, best_score, best_nghbr, i, j, depth, plane, score, nghbr);
     }
+  }
+//select optimized depth with bayesian
+  void CheckPlaneCandidateAlpha(cv::Mat *best_depth, cv::Mat *best_plane, cv::Mat *best_score, cv::Mat *best_nghbr, 
+          int i, int j, const cv::Vec3f &plane){
+      float score;
+      int nghbr = 1; //no meaning...
+      ComputeDepthScore(i, j, plane, &score);
+      if(score > best_score->at<float>(i, j)){
+          float depth = DepthOfPlaneBackprojection(j, i, Ks_[0], plane);
+          AssignPixel(best_depth, best_plane, best_score, best_nghbr, i, j, depth, plane, score, nghbr);
+      }
   }
 
   void CheckPlaneImageCandidate(cv::Mat *best_depth, cv::Mat *best_plane, cv::Mat *best_score, cv::Mat *best_nghbr,
@@ -429,26 +447,35 @@ class DepthmapEstimator {
       for (int other =1; other < images_size(); ++other){
           float image_score = ComputePlaneImageScore(i, j, plane, other);
           if(betaCheck == 1){ //if it's beta
-              float old_beta =1;
+              float old_beta_0 = 1;
+              float old_beta_1 = 1;
               int hpz = (patch_size_-1)/2;
-              if( j+1 < betas.at(other).size().width-hpz-1) //not end of row
-                old_beta = betas_.at(other)[i][j+1];
+              if( j+1 < betas.at(other).size().width-hpz-1){ //not end of row
+                old_beta_0 = betas_.at(other).at<Vec2f>(i,j+1)[0];
+                old_beta_1 = betas_.at(other).at<Vec2f>(i,j+1)[1];
+              }
 
               prob_z1 = exp(-pow(1-image_score, 2.0)/(2*dist_sigma*dist_sigma)) / normalizationA;
               prob_z0 = 0.5;    //didn't add N as the thesis.
           
-              float beta = (prob_z0*gamma + prob_z1*(1-gamma) + prob_z0*(1-gamma) + prob_z1*gamma) * old_beta
-              betas_.at(other)[i][j] = beta;
+              betas_.at(other).at<Vec2f>(i,j)[0] = old_beta_0*prob_z0*gamma+ prob_z1*(1-gamma)*old_beta_1;
+              betas_.at(other).at<Vec2f>(i,j)[1] = old_beta_1*prob_z1*gamma+ old_beta_0*prob_z0*(1-gamma);
           }
           else if(betaCheck == 2||betaCheck ==3){      //if it is alpha
-              float old_alpha = 1;
+              float old_alpha_0 = 1;
+              float old_alpha_1 = 1;
               int hpz = (patch_size_-1)/2;
-              if(j-1 > hpz)
-                  old_alpha = alphas_at.(other)[i][j-1];
+              if(j-1 > hpz){
+                  old_alpha_0 = alphas_at.(other).at<Vec2f>(i,j-1)[0];
+                  old_alpha_1 = alphas_at.(other).at<Vec2f>(i,j-1)[1];
+              }
               prob_z0 = 0.5;
               prob_z1 = exp(-pow(1-image_score, 2.0)/(2*dist_sigma*dist_sigma))/normalizationA;
+              
+              alphas_.at(other).at<Vec2f>(i,j)[0] = prob_z0*(old_alpha_0*gamma + old_alpha_1*(1-gamma));
+              alphas_.at(other).at<Vec2f>(i,j)[1] = prob_z1*(old_alpha_0*(1-gamma) + old_alpha_1*gamma);
               if(betaCheck ==3){    //compute q(Z)
-
+                  qMats_.at(other)[i][j] = alphas_.at(other).at<Vec2f>(i,j)[1]*betas_.at(other).at<Vec2f>(i,j)[1]/normalizationA; // we only use q(z=1)
               }
           }
           else{
@@ -468,6 +495,19 @@ class DepthmapEstimator {
         *nghbr = other;
       }
     }
+  }
+
+  void ComputeDepthScore(int i, int j, const cv::Vec3f &plane,float *score){
+      *score = -1.0f;
+      float image_score = 0.0f;
+      float ncc_score;
+      for(int other = 1; other < images_.size(); ++other){
+          ncc_score = ComputePlaneImageScore(i, j, plane, other);
+          image_score += (1-ncc_score)*(1-ncc_score)*qMats_.at(other)[i][j];
+      }
+      if (image_score > *score){
+          *score = image_score;
+      }
   }
 
   float ComputePlaneImageScoreUnoptimized(int i, int j,
@@ -523,6 +563,7 @@ class DepthmapEstimator {
 
 
  private:
+  std::vector<cv::Mat> qMats_;
   std::vector<cv::Mat> betas_;
   std::vector<cv::Mat> alphas_;
   std::vector<cv::Mat> images_;
