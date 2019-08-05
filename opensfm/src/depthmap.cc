@@ -138,7 +138,7 @@ float UniformRand(float a, float b) {
 class DepthmapEstimator {
  public:
   DepthmapEstimator()
-    : patch_size_(13)          //chage to 9
+    : patch_size_(15)          //chage to 9
     , min_depth_(0)
     , max_depth_(0)
     , num_depth_planes_(50)
