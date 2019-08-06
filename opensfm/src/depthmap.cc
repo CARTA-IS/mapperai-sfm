@@ -479,7 +479,7 @@ class DepthmapEstimator {
               alphas_.at(other).at<cv::Vec2f>(i,j)[0] = prob_z0*(old_alpha_0*gamma + old_alpha_1*(1-gamma));
               alphas_.at(other).at<cv::Vec2f>(i,j)[1] = prob_z1*(old_alpha_0*(1-gamma) + old_alpha_1*gamma);
               if(betaCheck ==3){    //compute q(Z)
-                  qMats_.at(other).at(i,j) = alphas_.at(other).at<cv::Vec2f>(i,j)[1]*betas_.at(other).at<cv::Vec2f>(i,j)[1]/normalizationA; // we only use q(z=1)
+                  qMats_.at(other).at<double>(i,j) = alphas_.at(other).at<cv::Vec2f>(i,j)[1]*betas_.at(other).at<cv::Vec2f>(i,j)[1]/normalizationA; // we only use q(z=1)
               }
           }
           else{
@@ -507,7 +507,7 @@ class DepthmapEstimator {
       float ncc_score;
       for(int other = 1; other < images_.size(); ++other){
           ncc_score = ComputePlaneImageScore(i, j, plane, other);
-          image_score += (1-ncc_score)*(1-ncc_score)*qMats_.at(other).at(i,j);
+          image_score += (1-ncc_score)*(1-ncc_score)*qMats_.at(other).at<double>(i,j);
       }
       if (image_score > *score){
           *score = image_score;
