@@ -451,31 +451,31 @@ class DepthmapEstimator {
               float old_beta_1 = 1;
               int hpz = (patch_size_-1)/2;
               if( j+1 < betas.at(other).size().width-hpz-1){ //not end of row
-                old_beta_0 = betas_.at(other).at<Vec2f>(i,j+1)[0];
-                old_beta_1 = betas_.at(other).at<Vec2f>(i,j+1)[1];
+                old_beta_0 = betas_.at(other).at<cv::Vec2f>(i,j+1)[0];
+                old_beta_1 = betas_.at(other).at<cv::Vec2f>(i,j+1)[1];
               }
 
               prob_z1 = exp(-pow(1-image_score, 2.0)/(2*dist_sigma*dist_sigma)) / normalizationA;
               prob_z0 = 0.5;    //didn't add N as the thesis.
           
-              betas_.at(other).at<Vec2f>(i,j)[0] = old_beta_0*prob_z0*gamma+ prob_z1*(1-gamma)*old_beta_1;
-              betas_.at(other).at<Vec2f>(i,j)[1] = old_beta_1*prob_z1*gamma+ old_beta_0*prob_z0*(1-gamma);
+              betas_.at(other).at<cv::Vec2f>(i,j)[0] = old_beta_0*prob_z0*gamma+ prob_z1*(1-gamma)*old_beta_1;
+              betas_.at(other).at<cv::Vec2f>(i,j)[1] = old_beta_1*prob_z1*gamma+ old_beta_0*prob_z0*(1-gamma);
           }
           else if(betaCheck == 2||betaCheck ==3){      //if it is alpha
               float old_alpha_0 = 1;
               float old_alpha_1 = 1;
               int hpz = (patch_size_-1)/2;
               if(j-1 > hpz){
-                  old_alpha_0 = alphas_at.(other).at<Vec2f>(i,j-1)[0];
-                  old_alpha_1 = alphas_at.(other).at<Vec2f>(i,j-1)[1];
+                  old_alpha_0 = alphas_at.(other).at<cv::Vec2f>(i,j-1)[0];
+                  old_alpha_1 = alphas_at.(other).at<cv::Vec2f>(i,j-1)[1];
               }
               prob_z0 = 0.5;
               prob_z1 = exp(-pow(1-image_score, 2.0)/(2*dist_sigma*dist_sigma))/normalizationA;
               
-              alphas_.at(other).at<Vec2f>(i,j)[0] = prob_z0*(old_alpha_0*gamma + old_alpha_1*(1-gamma));
-              alphas_.at(other).at<Vec2f>(i,j)[1] = prob_z1*(old_alpha_0*(1-gamma) + old_alpha_1*gamma);
+              alphas_.at(other).at<cv::Vec2f>(i,j)[0] = prob_z0*(old_alpha_0*gamma + old_alpha_1*(1-gamma));
+              alphas_.at(other).at<cv::Vec2f>(i,j)[1] = prob_z1*(old_alpha_0*(1-gamma) + old_alpha_1*gamma);
               if(betaCheck ==3){    //compute q(Z)
-                  qMats_.at(other)[i][j] = alphas_.at(other).at<Vec2f>(i,j)[1]*betas_.at(other).at<Vec2f>(i,j)[1]/normalizationA; // we only use q(z=1)
+                  qMats_.at(other)[i][j] = alphas_.at(other).at<cv::Vec2f>(i,j)[1]*betas_.at(other).at<cv::Vec2f>(i,j)[1]/normalizationA; // we only use q(z=1)
               }
           }
           else{
