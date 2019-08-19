@@ -501,15 +501,16 @@ class DepthmapEstimator {
   }
 
   void ComputeDepthScore(int i, int j, const cv::Vec3f &plane,float *score){
-      *score = 100.0f;
+      *score = 1000.0f;
       float image_score = 0.0f;
       float ncc_score;
       for(int other = 1; other < images_.size(); ++other){
           ncc_score = ComputePlaneImageScore(i, j, plane, other);
           image_score += (1-ncc_score)*(1-ncc_score)*qMats_.at(other).at<double>(i,j);
-      }
-      if (image_score < *score){
-          *score = image_score;
+      
+          if (image_score < *score){
+              *score = image_score;
+          }
       }
   }
 
