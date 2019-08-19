@@ -425,7 +425,7 @@ class DepthmapEstimator {
       float score;
       int nghbr = 1; //no meaning...
       ComputeDepthScore(i, j, plane, &score);
-      if(score > best_score->at<float>(i, j)){
+      if(score < best_score->at<float>(i, j)){
           float depth = DepthOfPlaneBackprojection(j, i, Ks_[0], plane);
           AssignPixel(best_depth, best_plane, best_score, best_nghbr, i, j, depth, plane, score, nghbr);
       }
@@ -454,37 +454,36 @@ class DepthmapEstimator {
           float image_score = ComputePlaneImageScore(i, j, plane, other);
 
           float prob_z1 = exp(-pow(1-image_score, 2.0)/(2*dist_sigma*dist_sigma)) / normalizationA;
-          float prob_z0 = 0.5; 
+          float prob_z0 = 0.5;
+
+          float old_0 = 1;
+          float old_1 = 1;
+          int hpz = (patch_size_-1)/2;
+
           if(betaCheck == 1){ //if it's beta
-              float old_beta_0 = 1;
-              float old_beta_1 = 1;
-              int hpz = (patch_size_-1)/2;
               if( j+1 < betas_.at(other).size().width-hpz-1){ //not end of row
-                old_beta_0 = betas_.at(other).at<cv::Vec2f>(i,j+1)[0];
-                old_beta_1 = betas_.at(other).at<cv::Vec2f>(i,j+1)[1];
+                old_0 = betas_.at(other).at<cv::Vec2f>(i,j+1)[0];
+                old_1 = betas_.at(other).at<cv::Vec2f>(i,j+1)[1];
               }
    //didn't add N as the thesis.
           
-              betas_.at(other).at<cv::Vec2f>(i,j)[0] = old_beta_0*prob_z0*gamma+ prob_z1*(1-gamma)*old_beta_1;
-              betas_.at(other).at<cv::Vec2f>(i,j)[1] = old_beta_1*prob_z1*gamma+ old_beta_0*prob_z0*(1-gamma);
+              betas_.at(other).at<cv::Vec2f>(i,j)[0] = old_0*prob_z0*gamma+ prob_z1*(1-gamma)*old_1;
+              betas_.at(other).at<cv::Vec2f>(i,j)[1] = old_1*prob_z1*gamma+ old_0*prob_z0*(1-gamma);
           }
-          else if(betaCheck == 2||betaCheck ==3){      //if it is alpha
-              float old_alpha_0 = 1;
-              float old_alpha_1 = 1;
-              int hpz = (patch_size_-1)/2;
+          else if(betaCheck == 2||betaCheck == 3){      //if it is alpha
               if(j-1 > hpz){
-                  old_alpha_0 = alphas_.at(other).at<cv::Vec2f>(i,j-1)[0];
-                  old_alpha_1 = alphas_.at(other).at<cv::Vec2f>(i,j-1)[1];
+                  old_0 = alphas_.at(other).at<cv::Vec2f>(i,j-1)[0];
+                  old_1 = alphas_.at(other).at<cv::Vec2f>(i,j-1)[1];
               }
-              alphas_.at(other).at<cv::Vec2f>(i,j)[0] = prob_z0*(old_alpha_0*gamma + old_alpha_1*(1-gamma));
-              alphas_.at(other).at<cv::Vec2f>(i,j)[1] = prob_z1*(old_alpha_0*(1-gamma) + old_alpha_1*gamma);
+              alphas_.at(other).at<cv::Vec2f>(i,j)[0] = prob_z0*(old_0*gamma + old_1*(1-gamma));
+              alphas_.at(other).at<cv::Vec2f>(i,j)[1] = prob_z1*(old_0*(1-gamma) + old_1*gamma);
+
               if(betaCheck ==3){    //compute q(Z)
                   qMats_.at(other).at<double>(i,j) = alphas_.at(other).at<cv::Vec2f>(i,j)[1]*betas_.at(other).at<cv::Vec2f>(i,j)[1]/normalizationA; // we only use q(z=1)
               }
           }
-          else{
+          else
               printf("the bool check for alpha beta is weird!!!\n");
-          }
       }
   }
 
@@ -502,14 +501,14 @@ class DepthmapEstimator {
   }
 
   void ComputeDepthScore(int i, int j, const cv::Vec3f &plane,float *score){
-      *score = -1.0f;
+      *score = 100.0f;
       float image_score = 0.0f;
       float ncc_score;
       for(int other = 1; other < images_.size(); ++other){
           ncc_score = ComputePlaneImageScore(i, j, plane, other);
           image_score += (1-ncc_score)*(1-ncc_score)*qMats_.at(other).at<double>(i,j);
       }
-      if (image_score > *score){
+      if (image_score < *score){
           *score = image_score;
       }
   }
