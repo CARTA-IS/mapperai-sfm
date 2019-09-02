@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 def _add_camera_to_bundle(ba, camera, constant):
     """Add camera to a bundle adjustment problem."""
     if camera.projection_type == 'perspective':
-        c = csfm.BAPerpectiveCamera()
+        c = csfm.BAPerspectiveCamera()
         c.id = str(camera.id)
         c.focal = camera.focal
         c.c_x = camera.c_x
