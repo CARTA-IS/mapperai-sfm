@@ -27,12 +27,26 @@ def _add_camera_to_bundle(ba, camera, constant):
     """Add camera to a bundle adjustment problem."""
     if camera.projection_type == 'perspective':
         c = csfm.BAPerpectiveCamera()
-
-        ba.add_perspective_camera(
-            str(camera.id), camera.focal, camera.k1, camera.k2,
-            camera.focal_prior, camera.k1_prior, camera.k2_prior,
-            constant)
-    if camera.projection_type == 'brown':
+        c.id = str(camera.id)
+        c.focal = camera.focal
+        c.c_x = camera.c_x
+        c.c_y = camera.c_y
+        c.k1 = camera.k1
+        c.k2 = camera.k2
+        c.p1 = camera.p1
+        c.p2 = camera.p2
+        c.k3 = camera.k3
+        c.focal_prior = camera.focal_prior
+        c.c_x_prior = camera.c_x_prior
+        c.c_y_prior = camera.c_y_prior
+        c.k1_prior = camera.k1_prior
+        c.k2_prior = camera.k2_prior
+        c.p1_prior = camera.p1_prior
+        c.p2_prior = camera.p2_prior
+        c.k3_prior = camera.k3_prior
+        c.constant = constant
+        ba.add_perspective_camera(c)
+    elif camera.projection_type == 'brown':
         c = csfm.BABrownPerspectiveCamera()
         c.id = str(camera.id)
         c.focal_x = camera.focal_x
@@ -69,8 +83,13 @@ def _get_camera_from_bundle(ba, camera):
     if camera.projection_type == 'perspective':
         c = ba.get_perspective_camera(str(camera.id))
         camera.focal = c.focal
+        camera.c_x = c.c_x
+        camera.c_y = c.c_y
         camera.k1 = c.k1
         camera.k2 = c.k2
+        camera.p1 = c.p1
+        camera.p2 = c.p2
+        camera.k3 = c.k3
     elif camera.projection_type == 'brown':
         c = ba.get_brown_perspective_camera(str(camera.id))
         camera.focal_x = c.focal_x
