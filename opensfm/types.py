@@ -171,9 +171,13 @@ class PerspectiveCamera(Camera):
         self.width = None
         self.height = None
         self.focal = None
+        self.c_x = None
+        self.c_y = None
         self.k1 = None
         self.k2 = None
         self.focal_prior = None
+        self.c_x_prior = None
+        self.c_y_prior = None
         self.k1_prior = None
         self.k2_prior = None
 
@@ -194,8 +198,8 @@ class PerspectiveCamera(Camera):
         r2 = xn * xn + yn * yn
         distortion = 1.0 + r2 * (self.k1 + self.k2 * r2)
 
-        return np.array([self.focal * distortion * xn,
-                         self.focal * distortion * yn])
+        return np.array([self.focal * distortion * xn + self.c_x,
+                         self.focal * distortion * yn + self.c_y])
 
     def pixel_bearing(self, pixel):
         """Unit vector pointing to the pixel viewing direction."""
@@ -224,8 +228,8 @@ class PerspectiveCamera(Camera):
 
     def get_K(self):
         """The calibration matrix."""
-        return np.array([[self.focal, 0., 0.],
-                         [0., self.focal, 0.],
+        return np.array([[self.focal, 0., self.c_x],
+                         [0., self.focal, self.c_y],
                          [0., 0., 1.]])
 
     def get_K_in_pixel_coordinates(self, width=None, height=None):
@@ -239,10 +243,13 @@ class PerspectiveCamera(Camera):
         """
         w = width or self.width
         h = height or self.height
-        f = self.focal * max(w, h)
-        return np.array([[f, 0, 0.5 * (w - 1)],
-                         [0, f, 0.5 * (h - 1)],
-                         [0, 0, 1.0]])
+        s = max(w, h)
+        normalized_to_pixel = np.array([
+            [s, 0, (w-1) / 2.0],
+            [0, s, (h-1) / 2.0],
+            [0, 0, 1],
+        ])
+        return np.dot(normalized_to_pixel, self.get_K())
 
 
 class BrownPerspectiveCamera(Camera):
