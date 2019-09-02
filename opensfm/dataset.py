@@ -53,7 +53,7 @@ class DataSet:
         config_file = os.path.join(self.data_path, 'config.yaml')
         self.config = config.load_config(config_file)
         with open(config_file, 'w') as fout:
-            fout.write(yaml.dump)
+            fout.write(yaml.dump(self.config))
 
     def images(self):
         """Return list of file names of all images in this dataset"""
