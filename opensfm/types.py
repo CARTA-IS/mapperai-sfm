@@ -175,11 +175,17 @@ class PerspectiveCamera(Camera):
         self.c_y = None
         self.k1 = None
         self.k2 = None
+        self.p1 = None
+        self.p2 = None
+        self.k3 = None
         self.focal_prior = None
         self.c_x_prior = None
         self.c_y_prior = None
         self.k1_prior = None
         self.k2_prior = None
+        self.p1_prior = None
+        self.p2_prior = None
+        self.k3_prior = None
 
     def __repr__(self):
         return '{}({!r}, {!r}, {!r}, {!r}, {!r}, {!r}, {!r}, {!r}, {!r}, {!r})'.format(
@@ -194,17 +200,30 @@ class PerspectiveCamera(Camera):
         xn = point[0] / point[2]
         yn = point[1] / point[2]
 
+        # Radial and tangential distortion
+        r2 = xn * xn + yn * yn
+        radial_distortion = 1.0 + r2 * (self.k1 + r2 * (self.k2 + r2 * self.k3))
+        x_tangential_distortion = 2 * self.p1 * xn * yn + self.p2 * (r2 + 2 * xn * xn)
+        x_distorted = xn * radial_distortion + x_tangential_distortion
+        y_tangential_distortion = self.p1 * (r2 + 2 * yn * yn) + 2 * self.p2 * xn * yn
+        y_distorted = yn * radial_distortion + y_tangential_distortion
+
+        return np.array([self.focal * x_distorted + self.c_x,
+                         self.focal * y_distorted + self.c_y])
+
+        '''
         # Radial distortion
         r2 = xn * xn + yn * yn
         distortion = 1.0 + r2 * (self.k1 + self.k2 * r2)
 
         return np.array([self.focal * distortion * xn + self.c_x,
                          self.focal * distortion * yn + self.c_y])
+        '''
 
     def pixel_bearing(self, pixel):
         """Unit vector pointing to the pixel viewing direction."""
         point = np.asarray(pixel).reshape((1, 1, 2))
-        distortion = np.array([self.k1, self.k2, 0., 0.])
+        distortion = np.array([self.k1, self.k2, self.p1, self.p2, self.k3])
         x, y = cv2.undistortPoints(point, self.get_K(), distortion).flat
         l = np.sqrt(x * x + y * y + 1.0)
         return np.array([x / l, y / l, 1.0 / l])
@@ -212,7 +231,7 @@ class PerspectiveCamera(Camera):
     def pixel_bearings(self, pixels):
         """Unit vector pointing to the pixel viewing directions."""
         points = pixels.reshape((-1, 1, 2)).astype(np.float64)
-        distortion = np.array([self.k1, self.k2, 0., 0.])
+        distortion = np.array([self.k1, self.k2, self.p1, self.p2, self.k3])
         up = cv2.undistortPoints(points, self.get_K(), distortion)
         up = up.reshape((-1, 2))
         x = up[:, 0]

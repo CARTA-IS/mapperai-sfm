@@ -1,6 +1,7 @@
 *.pyc
 *.so
 *.swp
+*.swo
 xcode
 .DS_Store
 launch.json
