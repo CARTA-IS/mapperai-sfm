@@ -1392,7 +1392,7 @@ class BundleAdjuster {
                                    c.parameters);
           break;
         }
-        case BA_FISHEYE_CAMERA:
+        /*case BA_FISHEYE_CAMERA:
         {
           BAFisheyeCamera &c = static_cast<BAFisheyeCamera &>(*i.second);
 
@@ -1411,7 +1411,7 @@ class BundleAdjuster {
                                    NULL,
                                    c.parameters);
           break;
-        }
+        }*/
         case BA_EQUIRECTANGULAR_CAMERA:
           break;
       }
