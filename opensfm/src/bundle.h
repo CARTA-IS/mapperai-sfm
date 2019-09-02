@@ -268,8 +268,8 @@ void PerspectiveProject(const T* const camera,
   T yp = point[1] / point[2];
 
   // Apply second and fourth order radial distortion.
-  const T& l1 = camera[BA_CAMERA_K1];
-  const T& l2 = camera[BA_CAMERA_K2];
+  const T& k1 = camera[BA_CAMERA_K1];
+  const T& k2 = camera[BA_CAMERA_K2];
   const T& p1 = camera[BA_CAMERA_P1];
   const T& p2 = camera[BA_CAMERA_P2];
   const T& k3 = camera[BA_CAMERA_K3];
@@ -902,7 +902,7 @@ class BundleAdjuster {
   }
 
   void AddPerspectiveCamera(const BAPerspectiveCamera & c) {
-    cameras_[id] = std::unique_ptr<BAPerspectiveCamera>(new BAPerspectiveCamera(c));
+    cameras_[c.id] = std::unique_ptr<BAPerspectiveCamera>(new BAPerspectiveCamera(c));
     //BAPerspectiveCamera &c = static_cast<BAPerspectiveCamera &>(*cameras_[id]);
   }
 
@@ -1357,8 +1357,14 @@ class BundleAdjuster {
           ceres::CostFunction* cost_function =
               new ceres::AutoDiffCostFunction<BasicRadialInternalParametersPriorError, 8, 8>(
                   new BasicRadialInternalParametersPriorError(c.focal_prior, focal_prior_sd_,
+                                                        c.c_x_prior, c_prior_sd_,
+                                                        c.c_y_prior, c_prior_sd_,
+                                                        
                                                               c.k1_prior, k1_sd_,
-                                                              c.k2_prior, k2_sd_));
+                                                              c.k2_prior, k2_sd_,
+                                                        c.p1_prior, p1_sd_,
+                                                        c.p2_prior, p2_sd_,
+                                                        c.k3_prior, k3_sd_));
 
           problem.AddResidualBlock(cost_function,
                                    NULL,
