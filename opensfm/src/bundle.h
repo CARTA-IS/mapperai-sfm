@@ -1399,8 +1399,13 @@ class BundleAdjuster {
           ceres::CostFunction* cost_function =
               new ceres::AutoDiffCostFunction<BasicRadialInternalParametersPriorError, 3, 3>(
                   new BasicRadialInternalParametersPriorError(c.focal_prior, focal_prior_sd_,
+                                                        c.c_x_prior, c_prior_sd_,
+                                                        c.c_y_prior, c_prior_sd_,
                                                               c.k1_prior, k1_sd_,
-                                                              c.k2_prior, k2_sd_));
+                                                              c.k2_prior, k2_sd_,
+                                                        c.p1_prior, p1_sd_,
+                                                        c.p2_prior, p2_sd_,
+                                                        c.k3_prior, k3_sd_));
 
           problem.AddResidualBlock(cost_function,
                                    NULL,
