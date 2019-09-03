@@ -117,7 +117,7 @@ def undistort_perspective_image(image, camera):
     """Remove radial distortion from a perspective image."""
     height, width = image.shape[:2]
     K = camera.get_K_in_pixel_coordinates(width, height)
-    distortion = np.array([camera.k1, camera.k2, 0, 0])
+    distortion = np.array([camera.k1, camera.k2, camera.p1, camera.p2, camera.k3])
     return cv2.undistort(image, K, distortion)
 
 

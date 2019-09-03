@@ -1081,6 +1081,9 @@ def grow_reconstruction(data, graph, reconstruction, images, gcp):
     logger.info("-------------------------------------------------------")
 
     bundle(graph, reconstruction, gcp, data.config)
+    #test add outlier from  reconstruction
+    remove_outliers(graph, reconstruction,data.config)
+
     align.align_reconstruction(reconstruction, gcp, data.config)
     paint_reconstruction(data, graph, reconstruction)
     return reconstruction, report
