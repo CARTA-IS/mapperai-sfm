@@ -171,21 +171,21 @@ class PerspectiveCamera(Camera):
         self.width = None
         self.height = None
         self.focal = None
-        self.c_x = None
-        self.c_y = None
+        self.c_x = 0.0#None
+        self.c_y = 0.0#None
         self.k1 = None
         self.k2 = None
-        self.p1 = None
-        self.p2 = None
-        self.k3 = None
+        self.p1 = 0.0 #None
+        self.p2 = 0.0 #None
+        self.k3 = 0.0 #None
         self.focal_prior = None
-        self.c_x_prior = None
-        self.c_y_prior = None
+        self.c_x_prior = 0.0 #None
+        self.c_y_prior = 0.0 #None
         self.k1_prior = None
         self.k2_prior = None
-        self.p1_prior = None
-        self.p2_prior = None
-        self.k3_prior = None
+        self.p1_prior = 0.0 #None
+        self.p2_prior = 0.0 #None
+        self.k3_prior = 0.0 #None
 
     def __repr__(self):
         return '{}({!r}, {!r}, {!r}, {!r}, {!r}, {!r}, {!r}, {!r}, {!r}, {!r})'.format(
