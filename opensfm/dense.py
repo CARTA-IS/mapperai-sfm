@@ -91,6 +91,7 @@ def compute_depthmap(arguments):
     logger.info("Computing depthmap for image {0} with {1}".format(shot.id, method))
 
     de = csfm.DepthmapEstimator()
+    de.set_patch_size(data.config['depthmap_patch_size'])
     de.set_depth_range(min_depth, max_depth, 100)
     de.set_patchmatch_iterations(data.config['depthmap_patchmatch_iterations'])
     de.set_min_patch_sd(data.config['depthmap_min_patch_sd'])
