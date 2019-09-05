@@ -177,6 +177,10 @@ class DepthmapEstimator {
     patchmatch_iterations_ = n;
   }
 
+  void SetPatchSize(int n) {
+    patch_size_ = n;
+  }
+  
   void SetMinPatchSD(float sd) {
     min_patch_variance_ = sd * sd;
   }
