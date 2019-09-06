@@ -56,7 +56,9 @@ def compute_depthmaps(data, graph, reconstruction):
 
 def compute_depthmap_catched(arguments):
     try:
-        compute_depthmap(arguments)
+        for i in range(3):
+            compute_depthmap(arguments, i)
+
     except Exception as e:
         logger.error('Exception on child. Arguments: {}'.format(arguments))
         logger.exception(e)
@@ -78,7 +80,7 @@ def prune_depthmap_catched(arguments):
         logger.exception(e)
 
 
-def compute_depthmap(arguments):
+def compute_depthmap(arguments, hier_lvl):
     """Compute depthmap for a single shot."""
     log.setup()
 
@@ -95,7 +97,7 @@ def compute_depthmap(arguments):
     de.set_depth_range(min_depth, max_depth, 100)
     de.set_patchmatch_iterations(data.config['depthmap_patchmatch_iterations'])
     de.set_min_patch_sd(data.config['depthmap_min_patch_sd'])
-    add_views_to_depth_estimator(data, neighbors, de)
+    add_views_to_depth_estimator(data, neighbors, de, hier_lvl)
 
     if (method == 'BRUTE_FORCE'):
         depth, plane, score, nghbr = de.compute_brute_force()
@@ -118,8 +120,12 @@ def compute_depthmap(arguments):
         image = data.undistorted_image_as_array(shot.id)
         image = scale_down_image(image, depth.shape[1], depth.shape[0])
         ply = depthmap_to_ply(shot, depth, image)
-        with open(data._depthmap_file(shot.id, 'raw.npz.ply'), 'w') as fout:
-            fout.write(ply)
+        if hier_lvl == 2:
+            with open(data._depthmap_file(shot.id, 'raw.npz.ply'), 'w') as fout:
+                fout.write(ply)
+        else:
+            with open(data._depthmap_file(shot.id, str(hier_lvl)+'raw.npz.ply'), 'w') as fout:
+                fout.write(ply)
 
     if data.config.get('interactive'):
         import matplotlib.pyplot as plt
@@ -228,7 +234,7 @@ def merge_depthmaps(data, graph, reconstruction, neighbors):
     ply.write(data._depthmap_path() + '/merged.ply')
 
 
-def add_views_to_depth_estimator(data, neighbors, de):
+def add_views_to_depth_estimator(data, neighbors, de, lvl):
     """Add neighboring views to the DepthmapEstimator."""
     num_neighbors = data.config['depthmap_num_matching_views']
     for shot in neighbors[:num_neighbors + 1]:
@@ -236,7 +242,7 @@ def add_views_to_depth_estimator(data, neighbors, de):
         color_image = data.undistorted_image_as_array(shot.id)
         gray_image = cv2.cvtColor(color_image, cv2.COLOR_RGB2GRAY)
         original_height, original_width = gray_image.shape
-        width = int(data.config['depthmap_resolution'])
+        width = int(data.config['depthmap_resolution'])/(pow(2, (2-lvl)))
         height = width * original_height / original_width
         image = scale_down_image(gray_image, width, height)
         K = shot.camera.get_K_in_pixel_coordinates(width, height)
