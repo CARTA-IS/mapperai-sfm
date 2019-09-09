@@ -87,12 +87,16 @@ def compute_depthmap(arguments, hier_lvl):
     data, neighbors, min_depth, max_depth, shot = arguments
     method = data.config['depthmap_method']
 
-    if data.raw_depthmap_exists(shot.id):
+    if data.raw_depthmap_exists(shot.id) and hier_lvl == 2:
         logger.info("Using precomputed raw depthmap {}".format(shot.id))
         return
     logger.info("Computing depthmap for image {0} with {1}".format(shot.id, method))
 
     de = csfm.DepthmapEstimator()
+    if hier_lvl > 0:
+        de.set_hierarchy_check(True)
+        raw_depth, raw_plane, raw_score, raw_nghbr, nghbrs = data.load_raw_depthmap(shot.id)
+        de.set_previous_depth(raw_depth, raw_plane, raw_score, raw_nghbr)
     de.set_patch_size(data.config['depthmap_patch_size'])
     de.set_depth_range(min_depth, max_depth, 100)
     de.set_patchmatch_iterations(data.config['depthmap_patchmatch_iterations'])

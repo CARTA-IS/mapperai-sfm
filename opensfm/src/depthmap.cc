@@ -146,6 +146,7 @@ class DepthmapEstimator {
     , min_patch_variance_(5 * 5)
     , rng_{std::random_device{}()}
     , uni_(0, 0)
+    , hier_chck_(false)
   {}
 
   void AddView(const double *pK,
@@ -177,12 +178,47 @@ class DepthmapEstimator {
     patchmatch_iterations_ = n;
   }
 
-  void SetPatchSize(int n) {
-    patch_size_ = n;
+  void SetPatchSize(int n) 
+    patch_size_{ = n;
   }
   
+  void SetHierarchyCheck(bool chck){
+    hier_chck_=chck;
+  }
+
   void SetMinPatchSD(float sd) {
     min_patch_variance_ = sd * sd;
+  }
+
+  void SetPreviousDepth(const float *depth, cv::Vec3f *plane, const float *score, const int *nghbr, int width, int height){
+    int hpz = (patch_size_ - 1) / 2;
+    cv::Mat(height, width, CV_32F, (void *)depth).clone()
+    printf("%d %d     \/ %d %d \n", depth->rows, depth_cols, plane->rows, plane->cols);
+    cv::resize(cv::Mat(height, width, CV_32F, (void *)depth).clone(), prev_depth, cv::Size(height*2, width*2), 0, 0, CV_INTER_NN);
+    cv::resize(cv::Mat(height, width, CV_32FC3, (void *)plane).clone(), prev_plane, cv::Size(height*2, width*2), 0, 0, CV_INTER_NN);
+    cv::resize(cv::Mat(height, width, CV_32F, (void *)score).clone(), prev_score, cv::Size(height*2, width*2), 0, 0, CV_INTER_NN);
+    cv::resize(cv::Mat(height, width, CV_32S, (void *)nghbr).clone(), prev_nghbr, cv::Size(height*2, width*2), 0, 0, CV_INTER_NN);
+    /*
+    prev_depth = cv::Mat(depth->rows*2, depth->cols*2, CV_32F, 0.0f);
+    prev_plane = cv::Mat(images_[0].rows, images_[0].cols, CV_32FC3, 0.0f);
+    prev_score = cv::Mat(images_[0].rows, images_[0].cols, CV_32F, 0.0f);
+    prev_nghbr = cv::Mat(images_[0].rows, images_[0].cols, CV_32S, cv::Scalar(0));
+
+    for (int i = hpz; i < prev_depth.rows - hpz; ++i) {
+      for (int j = hpz; j < prev_depth.cols - hpz; ++j) {
+        int resize_i = int(i/2);
+        int resize_j = int(j/2);
+        float depth = depth->at<float>(resize_i, resize_j);
+        cv::Vec3f plane = plane->at<cv::Vec3f>(resize_i, resize_j);
+        int nghbr = nghbr->at<int>(resize_i, resize_j);
+        float score = score->at<float>(resize_i, resize_j);
+        
+        prev_depth->at<float>(i, j) = depth;
+        prev_plane->at<cv::Vec3f>(i, j) = plane;
+        prev_score->at<float>(i, j) = score;
+        prev_nghbr->at<int>(i, j) = nghbr;
+      }
+    }*/
   }
 
   void ComputeBruteForce(cv::Mat *best_depth, cv::Mat *best_plane, cv::Mat *best_score, cv::Mat *best_nghbr) {
@@ -203,7 +239,10 @@ class DepthmapEstimator {
 
   void ComputePatchMatch(cv::Mat *best_depth, cv::Mat *best_plane, cv::Mat *best_score, cv::Mat *best_nghbr) {
     AssignMatrices(best_depth, best_plane, best_score, best_nghbr);
-    RandomInitialization(best_depth, best_plane, best_score, best_nghbr, false);
+    if(!hier_chck_)
+        RandomInitialization(best_depth, best_plane, best_score, best_nghbr, false);
+    else
+        PrevInitialization(best_depth, best_plane, best_score, best_nghbr);
     ComputeIgnoreMask(best_depth, best_plane, best_score, best_nghbr);
 
     for (int i = 0; i < patchmatch_iterations_; ++i) {
@@ -228,6 +267,14 @@ class DepthmapEstimator {
     *best_plane = cv::Mat(images_[0].rows, images_[0].cols, CV_32FC3, 0.0f);
     *best_score = cv::Mat(images_[0].rows, images_[0].cols, CV_32F, 0.0f);
     *best_nghbr = cv::Mat(images_[0].rows, images_[0].cols, CV_32S, cv::Scalar(0));
+  }
+
+  void PrevInitialization(cv::Mat *best_depth, cv::Mat *best_plane, cv::Mat *best_score, cv::Mat *best_nghbr){
+      printf("prev initialization!!!\n");
+    *best_depth = prev_depth.clone();
+    *best_plane = prev_plane.clone();
+    *best_score = prev_score.clone();
+    *best_nghbr = prev_nghbr.clone();
   }
 
   void RandomInitialization(cv::Mat *best_depth, cv::Mat *best_plane, cv::Mat *best_score, cv::Mat *best_nghbr, bool sample) {
@@ -471,6 +518,12 @@ class DepthmapEstimator {
   float min_patch_variance_;
   std::mt19937 rng_;
   std::uniform_int_distribution<int> uni_;
+  //hier chk
+  bool hier_chck_;
+  cv::Mat prev_depth;
+  cv::Mat prev_plane;
+  cv::Mat prev_score;
+  cv::Mat prev_nghbr;
 };
 
 

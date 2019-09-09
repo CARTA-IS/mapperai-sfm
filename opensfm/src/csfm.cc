@@ -209,7 +209,11 @@ BOOST_PYTHON_MODULE(csfm) {
     .def("compute_patch_match", &csfm::DepthmapEstimatorWrapper::ComputePatchMatch)
     .def("compute_patch_match_sample", &csfm::DepthmapEstimatorWrapper::ComputePatchMatchSample)
     .def("compute_brute_force", &csfm::DepthmapEstimatorWrapper::ComputeBruteForce)
-  ;
+ // ;
+//////// My function
+    .def("set_hierarchy_check", &csfm::DepthmapEstimatorWrapper::SetHierarchyCheck)
+    .def("set_previous_depth", &csfm::DepthmapEstimatorWrapper::SetPreviousDepth)
+;
 
   class_<csfm::DepthmapCleanerWrapper>("DepthmapCleaner")
     .def("set_same_depth_threshold", &csfm::DepthmapCleanerWrapper::SetSameDepthThreshold)

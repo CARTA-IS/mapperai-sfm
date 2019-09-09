@@ -32,6 +32,19 @@ class DepthmapEstimatorWrapper {
   void SetMinPatchSD(float sd) {
     de_.SetMinPatchSD(sd);
   }
+  void SetHierarchyCheck(bool chk){
+    de_.SetHierarchyCheck(chk);
+  }
+  void SetPreviousDepth(PyObject *depth,
+                        PyObject *plane,
+                        PyObject *score,
+                        PyObject *nghbr){
+    PyArrayContiguousView<double> depth_view((PyArrayObject *)depth);
+    PyArrayContiguousView<double> plane_view((PyArrayObject *)plane);
+    PyArrayContiguousView<double> score_view((PyArrayObject *)score);
+    PyArrayContiguousView<int> nghbr_view((PyArrayObject *)nghbr);
+    de_.SetPreviousDepth(depth_view.data(), plane_view.data(), score_view.data(), nghbr_view.data(), depth_view.shape(1), depth_view.shape(0));
+  }
 
   bp::object ComputePatchMatch() {
     cv::Mat depth, plane, score, nghbr;
