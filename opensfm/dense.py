@@ -87,7 +87,7 @@ def compute_depthmap(arguments, hier_lvl):
     data, neighbors, min_depth, max_depth, shot = arguments
     method = data.config['depthmap_method']
 
-    if data.raw_depthmap_exists(shot.id) and hier_lvl == 2:
+    if data.raw_depthmap_exists(shot.id) and hier_lvl == 3:
         logger.info("Using precomputed raw depthmap {}".format(shot.id))
         return
     logger.info("Computing depthmap for image {0} with {1}".format(shot.id, method))

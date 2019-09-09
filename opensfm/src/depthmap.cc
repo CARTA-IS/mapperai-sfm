@@ -194,10 +194,10 @@ class DepthmapEstimator {
     int hpz = (patch_size_ - 1) / 2;
     printf("%d %d  \n", width, height);
 
-    cv::resize(cv::Mat(height, width, CV_32F, (void *)depth).clone(), prev_depth, cv::Size(height*2, width*2), 0, 0, CV_INTER_NN);
-    cv::resize(cv::Mat(height, width, CV_32FC3, (void *)plane).clone(), prev_plane, cv::Size(height*2, width*2), 0, 0, CV_INTER_NN);
-    cv::resize(cv::Mat(height, width, CV_32F, (void *)score).clone(), prev_score, cv::Size(height*2, width*2), 0, 0, CV_INTER_NN);
-    cv::resize(cv::Mat(height, width, CV_32S, (void *)nghbr).clone(), prev_nghbr, cv::Size(height*2, width*2), 0, 0, CV_INTER_NN);
+    cv::resize(cv::Mat(height, width, CV_32F, (void *)depth).clone(), prev_depth, cv::Size(width*2, height*2), 0, 0, CV_INTER_NN);
+    cv::resize(cv::Mat(height, width, CV_32FC3, (void *)plane).clone(), prev_plane, cv::Size(width*2, height*2), 0, 0, CV_INTER_NN);
+    cv::resize(cv::Mat(height, width, CV_32F, (void *)score).clone(), prev_score, cv::Size(width*2, height*2), 0, 0, CV_INTER_NN);
+    cv::resize(cv::Mat(height, width, CV_32S, (void *)nghbr).clone(), prev_nghbr, cv::Size(width*2, height*2), 0, 0, CV_INTER_NN);
     /*
     prev_depth = cv::Mat(depth->rows*2, depth->cols*2, CV_32F, 0.0f);
     prev_plane = cv::Mat(images_[0].rows, images_[0].cols, CV_32FC3, 0.0f);
