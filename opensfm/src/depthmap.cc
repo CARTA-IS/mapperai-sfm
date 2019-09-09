@@ -190,7 +190,7 @@ class DepthmapEstimator {
     min_patch_variance_ = sd * sd;
   }
 
-  void SetPreviousDepth(const double *depth, const double *plane, const double *score, const int *nghbr, int width, int height){
+  void SetPreviousDepth(const float *depth, const float *plane, const float *score, const int *nghbr, int width, int height){
     int hpz = (patch_size_ - 1) / 2;
     printf("%d %d  \n", width, height);
 

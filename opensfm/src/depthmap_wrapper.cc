@@ -39,9 +39,9 @@ class DepthmapEstimatorWrapper {
                         PyObject *plane,
                         PyObject *score,
                         PyObject *nghbr){
-    PyArrayContiguousView<double> depth_view((PyArrayObject *)depth);
-    PyArrayContiguousView<double> plane_view((PyArrayObject *)plane);
-    PyArrayContiguousView<double> score_view((PyArrayObject *)score);
+    PyArrayContiguousView<float> depth_view((PyArrayObject *)depth);
+    PyArrayContiguousView<float> plane_view((PyArrayObject *)plane);
+    PyArrayContiguousView<float> score_view((PyArrayObject *)score);
     PyArrayContiguousView<int> nghbr_view((PyArrayObject *)nghbr);
     de_.SetPreviousDepth(depth_view.data(), plane_view.data(), score_view.data(), nghbr_view.data(), depth_view.shape(1), depth_view.shape(0));
   }
