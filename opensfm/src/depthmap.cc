@@ -192,7 +192,8 @@ class DepthmapEstimator {
 
   void SetPreviousDepth(const double *depth, const double *plane, const double *score, const int *nghbr, int width, int height){
     int hpz = (patch_size_ - 1) / 2;
-    printf("%d %d     \/ %d %d \n", depth->rows, depth_cols, plane->rows, plane->cols);
+    printf("%d %d  \n", width, height);
+
     cv::resize(cv::Mat(height, width, CV_32F, (void *)depth).clone(), prev_depth, cv::Size(height*2, width*2), 0, 0, CV_INTER_NN);
     cv::resize(cv::Mat(height, width, CV_32FC3, (void *)plane).clone(), prev_plane, cv::Size(height*2, width*2), 0, 0, CV_INTER_NN);
     cv::resize(cv::Mat(height, width, CV_32F, (void *)score).clone(), prev_score, cv::Size(height*2, width*2), 0, 0, CV_INTER_NN);
