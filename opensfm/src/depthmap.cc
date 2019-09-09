@@ -179,7 +179,7 @@ class DepthmapEstimator {
   }
 
   void SetPatchSize(int n) 
-    patch_size_{ = n;
+    patch_size_ = n;
   }
   
   void SetHierarchyCheck(bool chck){
@@ -190,9 +190,8 @@ class DepthmapEstimator {
     min_patch_variance_ = sd * sd;
   }
 
-  void SetPreviousDepth(const float *depth, cv::Vec3f *plane, const float *score, const int *nghbr, int width, int height){
+  void SetPreviousDepth(const double *depth, const double *plane, const double *score, const int *nghbr, int width, int height){
     int hpz = (patch_size_ - 1) / 2;
-    cv::Mat(height, width, CV_32F, (void *)depth).clone()
     printf("%d %d     \/ %d %d \n", depth->rows, depth_cols, plane->rows, plane->cols);
     cv::resize(cv::Mat(height, width, CV_32F, (void *)depth).clone(), prev_depth, cv::Size(height*2, width*2), 0, 0, CV_INTER_NN);
     cv::resize(cv::Mat(height, width, CV_32FC3, (void *)plane).clone(), prev_plane, cv::Size(height*2, width*2), 0, 0, CV_INTER_NN);
