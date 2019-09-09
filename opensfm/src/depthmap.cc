@@ -178,7 +178,7 @@ class DepthmapEstimator {
     patchmatch_iterations_ = n;
   }
 
-  void SetPatchSize(int n) 
+  void SetPatchSize(int n){ 
     patch_size_ = n;
   }
   
