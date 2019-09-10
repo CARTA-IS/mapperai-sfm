@@ -246,7 +246,8 @@ def add_views_to_depth_estimator(data, neighbors, de, lvl):
         color_image = data.undistorted_image_as_array(shot.id)
         gray_image = cv2.cvtColor(color_image, cv2.COLOR_RGB2GRAY)
         original_height, original_width = gray_image.shape
-        width = int(data.config['depthmap_resolution'])/(pow(2, (2-lvl)))
+        target_width = original_width/data.config['depthmap_resolution']
+        width = int(target_width)/(pow(2, (2-lvl)))
         height = width * original_height / original_width
         image = scale_down_image(gray_image, width, height)
         K = shot.camera.get_K_in_pixel_coordinates(width, height)
