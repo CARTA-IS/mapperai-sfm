@@ -27,12 +27,16 @@ def camera_from_json(key, obj):
         camera.width = obj.get('width', 0)
         camera.height = obj.get('height', 0)
         camera.focal = obj['focal']
+        camera.c_x = obj.get('c_x', 0.0)
+        camera.c_y = obj.get('c_y', 0.0)
         camera.k1 = obj.get('k1', 0.0)
         camera.k2 = obj.get('k2', 0.0)
         camera.p1 = obj.get('p1', 0.0)
         camera.p2 = obj.get('p2', 0.0)
         camera.k3 = obj.get('k3', 0.0)
         camera.focal_prior = obj.get('focal_prior', camera.focal)
+        camera.c_x_prior = obj.get('c_x_prior', camera.c_x)
+        camera.c_y_prior = obj.get('c_y_prior', camera.c_y)
         camera.k1_prior = obj.get('k1_prior', camera.k1)
         camera.k2_prior = obj.get('k2_prior', camera.k2)
         camera.p1_prior = obj.get('p1_prior', camera.k1)
@@ -198,12 +202,16 @@ def camera_to_json(camera):
             'width': camera.width,
             'height': camera.height,
             'focal': camera.focal,
+            'c_x': camera.c_x,
+            'c_y': camera.c_y,
             'k1': camera.k1,
             'k2': camera.k2,
             'p1': camera.p1,
             'p2': camera.p2,
             'k3': camera.k3,
             'focal_prior': camera.focal_prior,
+            'c_x_prior': camera.c_x_prior,
+            'c_y_prior': camera.c_y_prior,
             'k1_prior': camera.k1_prior,
             'k2_prior': camera.k2_prior,
             'p1_prior': camera.p1_prior,
