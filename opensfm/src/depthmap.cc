@@ -196,29 +196,23 @@ class DepthmapEstimator {
 
     cv::resize(cv::Mat(height, width, CV_32F, (void *)depth).clone(), prev_depth, cv::Size(width*2, height*2), 0, 0, CV_INTER_NN);
     cv::resize(cv::Mat(height, width, CV_32FC3, (void *)plane).clone(), prev_plane, cv::Size(width*2, height*2), 0, 0, CV_INTER_NN);
-    cv::resize(cv::Mat(height, width, CV_32F, (void *)score).clone(), prev_score, cv::Size(width*2, height*2), 0, 0, CV_INTER_NN);
+   /* cv::resize(cv::Mat(height, width, CV_32F, (void *)score).clone(), prev_score, cv::Size(width*2, height*2), 0, 0, CV_INTER_NN);
     cv::resize(cv::Mat(height, width, CV_32S, (void *)nghbr).clone(), prev_nghbr, cv::Size(width*2, height*2), 0, 0, CV_INTER_NN);
-    /*
-    prev_depth = cv::Mat(depth->rows*2, depth->cols*2, CV_32F, 0.0f);
-    prev_plane = cv::Mat(images_[0].rows, images_[0].cols, CV_32FC3, 0.0f);
-    prev_score = cv::Mat(images_[0].rows, images_[0].cols, CV_32F, 0.0f);
-    prev_nghbr = cv::Mat(images_[0].rows, images_[0].cols, CV_32S, cv::Scalar(0));
-
-    for (int i = hpz; i < prev_depth.rows - hpz; ++i) {
-      for (int j = hpz; j < prev_depth.cols - hpz; ++j) {
-        int resize_i = int(i/2);
-        int resize_j = int(j/2);
-        float depth = depth->at<float>(resize_i, resize_j);
-        cv::Vec3f plane = plane->at<cv::Vec3f>(resize_i, resize_j);
-        int nghbr = nghbr->at<int>(resize_i, resize_j);
-        float score = score->at<float>(resize_i, resize_j);
-        
-        prev_depth->at<float>(i, j) = depth;
-        prev_plane->at<cv::Vec3f>(i, j) = plane;
+*/
+    prev_score = cv::Mat(height*2, width*2, CV_32F, 0.0f);
+    prev_nghbr = cv::Mat(height*2, width*2, CV_32S, cv::Scalar(0));
+ 
+    int hpz = (patch_size_ - 1) / 2;
+    for (int i = hpz; i < prev_depth->rows - hpz; ++i) {
+      for (int j = hpz; j < prev_depth->cols - hpz; ++j) {
+        int nghbr;
+        float score;
+        cv::Vec3f plane = prev_plane->at<cv::Vec3f>(i, j);
+        ComputePlaneScore(i, j, plane, &score, &nghbr);
         prev_score->at<float>(i, j) = score;
         prev_nghbr->at<int>(i, j) = nghbr;
       }
-    }*/
+    }
   }
 
   void ComputeBruteForce(cv::Mat *best_depth, cv::Mat *best_plane, cv::Mat *best_score, cv::Mat *best_nghbr) {
