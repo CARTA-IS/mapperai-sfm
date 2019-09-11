@@ -191,7 +191,6 @@ class DepthmapEstimator {
   }
 
   void SetPreviousDepth(const float *depth, const float *plane, const float *score, const int *nghbr, int width, int height){
-    int hpz = (patch_size_ - 1) / 2;
     printf("%d %d  \n", width, height);
 
     cv::resize(cv::Mat(height, width, CV_32F, (void *)depth).clone(), prev_depth, cv::Size(width*2, height*2), 0, 0, CV_INTER_NN);
@@ -203,14 +202,14 @@ class DepthmapEstimator {
     prev_nghbr = cv::Mat(height*2, width*2, CV_32S, cv::Scalar(0));
  
     int hpz = (patch_size_ - 1) / 2;
-    for (int i = hpz; i < prev_depth->rows - hpz; ++i) {
-      for (int j = hpz; j < prev_depth->cols - hpz; ++j) {
+    for (int i = hpz; i < prev_depth.rows - hpz; ++i) {
+      for (int j = hpz; j < prev_depth.cols - hpz; ++j) {
         int nghbr;
         float score;
-        cv::Vec3f plane = prev_plane->at<cv::Vec3f>(i, j);
+        cv::Vec3f plane = prev_plane.at<cv::Vec3f>(i, j);
         ComputePlaneScore(i, j, plane, &score, &nghbr);
-        prev_score->at<float>(i, j) = score;
-        prev_nghbr->at<int>(i, j) = nghbr;
+        prev_score.at<float>(i, j) = score;
+        prev_nghbr.at<int>(i, j) = nghbr;
       }
     }
   }
