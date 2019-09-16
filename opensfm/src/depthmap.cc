@@ -180,6 +180,9 @@ class DepthmapEstimator {
   void SetMinPatchSD(float sd) {
     min_patch_variance_ = sd * sd;
   }
+  void SetPatchSize(int n){
+    patch_size_ = n;
+  }
 
   void ComputeBruteForce(cv::Mat *best_depth, cv::Mat *best_plane, cv::Mat *best_score, cv::Mat *best_nghbr) {
     AssignMatrices(best_depth, best_plane, best_score, best_nghbr);

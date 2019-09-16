@@ -26,7 +26,9 @@ class DepthmapEstimatorWrapper {
   void SetPatchMatchIterations(int n) {
     de_.SetPatchMatchIterations(n);
   }
-
+  void SetPatchSize(int n){
+    de_.SetPatchSize(n);
+  }
   void SetMinPatchSD(float sd) {
     de_.SetMinPatchSD(sd);
   }
