@@ -7,6 +7,7 @@ import gzip
 import numpy as np
 import networkx as nx
 import cv2
+import yaml
 
 from opensfm import io
 from opensfm import config
