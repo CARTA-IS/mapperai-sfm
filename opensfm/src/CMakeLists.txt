@@ -111,7 +111,7 @@ pybind11_add_module(csfm
     depthmap.cc
 )
 
-add_library(csfm SHARED  csfm.cc)
+#add_library(csfm SHARED  csfm.cc)
 target_link_libraries(csfm 
     ${OpenCV_LIBS}
     ${GFLAGS_LIBRARY}
