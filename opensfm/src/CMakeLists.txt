@@ -10,11 +10,20 @@ endif()
 
 set(CMAKE_MODULE_PATH ${opensfm_SOURCE_DIR}/cmake)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -std=c++0x")
-
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} \
+    -fPIC \
+    -fvisibility=hidden")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
+    -fPIC \
+    -fvisibility=hidden \
+    -fvisibility-inlines-hidden \
+    -std=c++11")
 
 # Find dependencies.
+add_subdirectory(third_party/pybind11)
+
+include_directories(${PYTHON_INCLUDE_DIRS})
+
 find_package(OpenMP)
 if (OPENMP_FOUND)
   set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
@@ -43,28 +52,8 @@ include_directories(${GFLAGS_INCLUDE_DIR})
 find_package(Glog REQUIRED)
 include_directories(${GLOG_INCLUDE_DIR})
 
-find_package(OpenCV REQUIRED)
+find_package(OpenCV REQUIRED core imgproc calib3d)
 include_directories(${OpenCV_INCLUDE_DIRS})
-
-find_package(Boost REQUIRED COMPONENTS python)
-
-if(${Boost_VERSION} LESS 106300)
-    message("Not using boost/python/numpy.")
-    set(USE_BOOST_PYTHON_NUMPY "off")
-else()
-    message("Using boost/python/numpy.")
-    set(USE_BOOST_PYTHON_NUMPY "on")
-    add_definitions(-DUSE_BOOST_PYTHON_NUMPY)
-
-    find_package(Boost 1.63 REQUIRED COMPONENTS python numpy)
-endif()
-
-set(Python_ADDITIONAL_VERSIONS "2.7")
-find_package(PythonLibs REQUIRED)
-include_directories(${PYTHON_INCLUDE_DIRS})
-
-find_package(NumPy REQUIRED)
-include_directories(${NUMPY_INCLUDE_DIRS})
 
 
 # Akaze
@@ -95,6 +84,24 @@ add_definitions(-DVL_DISABLE_AVX)
 add_library(vl ${VLFEAT_SRCS})
 
 
+# Bundle
+include_directories(.)
+set(BUNDLE_FILES
+    bundle/src/error_utils.h
+    bundle/src/motion_prior_terms.h
+    bundle/src/absolute_motion_terms.h
+    bundle/src/relative_motion_terms.h
+    bundle/src/bundle_adjuster.cc)
+add_library(bundle ${BUNDLE_FILES})
+target_link_libraries(bundle PRIVATE
+    ${GFLAGS_LIBRARY}
+    ${GLOG_LIBRARY}
+    ${CERES_LIBRARIES}
+    ${LAPACK_LIBRARIES}
+    ${SUITESPARSE_LIBRARIES}
+)
+
+
 # Python wrapper
 add_library(csfm SHARED  csfm.cc)
 target_link_libraries(csfm 
@@ -104,23 +111,21 @@ target_link_libraries(csfm
     ${CERES_LIBRARIES}
     ${LAPACK_LIBRARIES}
     ${SUITESPARSE_LIBRARIES}
-    ${Boost_LIBRARIES}
     vl
     akaze
+    bundle
 )
 set_target_properties(csfm PROPERTIES
-    PREFIX ""
-    SUFFIX ".so"
     LIBRARY_OUTPUT_DIRECTORY "${opensfm_SOURCE_DIR}/.."
 )
-if(APPLE)
-    set_target_properties(csfm PROPERTIES
-        LINK_FLAGS "-undefined dynamic_lookup"
+
+
+if (CMAKE_BUILD_TYPE MATCHES DEBUG)
+    add_executable(debug_c_extension
+        debug_c_extension.cc
+        third_party/PythonExtensionPatterns/py_import_call_execute.c
     )
-else()
-    target_link_libraries(csfm
-        ${PYTHON_LIBRARIES}
-    )
+    target_link_libraries(debug_c_extension ${PYTHON_LIBRARIES})
 endif()
 
 
@@ -142,16 +147,10 @@ if (OPENSFM_BUILD_TESTS)
                         ${GLOG_LIBRARY}
                         gtest)
 
-  macro (OPENSFM_TEST NAME EXTRA_LIBS)
-    add_executable(${NAME}_test ${NAME}_test.cc)
-    target_link_libraries(${NAME}_test
-                          ${EXTRA_LIBS} # Extra libs MUST be first.
-                          ${GFLAGS_LIBRARY}
-                          ${GLOG_LIBRARY}
-                          gtest
-                          testing_main)
-    add_test(${NAME}_test ${NAME}_test)
-  endmacro ()
+  add_executable(depthmap_test depthmap_test.cc depthmap.cc)
+  target_link_libraries(depthmap_test
+                        ${OpenCV_LIBS}
+                        testing_main)
+  add_test(depthmap_test depthmap_test)
 
-  opensfm_test(depthmap "${OpenCV_LIBS}")
 endif()

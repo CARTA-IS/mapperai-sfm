@@ -5,7 +5,7 @@ import numpy as np
 import pyproj
 
 from opensfm import dataset
-from opensfm import geo
+from opensfm import io
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ class Command:
             print(' --transformation, --image-positions, --reconstruction, --dense')
 
         data = dataset.DataSet(args.dataset)
-        reference = data.load_reference_lla()
+        reference = data.load_reference()
 
         projection = pyproj.Proj(args.proj)
         transformation = self._get_transformation(reference, projection)
@@ -100,16 +100,14 @@ class Command:
 
     def _write_transformation(self, transformation, filename):
         """Write the 4x4 matrix transformation to a text file."""
-        with open(filename, 'w') as fout:
+        with io.open_wt(filename) as fout:
             for row in transformation:
-                fout.write(' '.join(map(str, row)))
-                fout.write('\n')
+                fout.write(u' '.join(map(str, row)))
+                fout.write(u'\n')
 
     def _transform(self, point, reference, projection):
         """Transform on point from local coords to a proj4 projection."""
-        lat, lon, altitude = geo.lla_from_topocentric(
-            point[0], point[1], point[2],
-            reference['latitude'], reference['longitude'], reference['altitude'])
+        lat, lon, altitude = reference.to_lla(point[0], point[1], point[2])
         easting, northing = projection(lon, lat)
         return [easting, northing, altitude]
 
@@ -148,8 +146,8 @@ class Command:
         A, b = transformation[:3, :3], transformation[:3, 3]
         input_path = os.path.join(data._depthmap_path(), 'merged.ply')
         output_path = os.path.join(data.data_path, output)
-        with open(input_path) as fin:
-            with open(output_path, 'w') as fout:
+        with io.open_rt(input_path) as fin:
+            with io.open_wt(output_path) as fout:
                 for i, line in enumerate(fin):
                     if i < 13:
                         fout.write(line)

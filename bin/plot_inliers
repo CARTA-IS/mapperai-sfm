@@ -13,6 +13,7 @@ import cv2
 from opensfm import dataset
 from opensfm import features
 from opensfm import matching
+from opensfm import tracking
 from opensfm import io
 from opensfm import csfm
 import opensfm.reconstruction as reconstruct
@@ -175,9 +176,9 @@ def display_figure(figure, save_figs, data=None, file_name='',
                            hspace=hspace)
 
     if save_figs:
-        p = data.data_path + '/plot_inliers'
+        p = os.path.join(args.dataset, 'plot_inliers')
         io.mkdir_p(p)
-        figure.savefig(p + '/' + file_name, dpi=100)
+        figure.savefig(os.path.join(p, file_name), dpi=100)
         pl.close()
     else:
         pl.show()
@@ -240,10 +241,11 @@ def triangulate_tracks(tracks, reconstruction, graph, min_ray_angle):
     :return: An array of booleans determining if each track was successfully triangulated or not.
     """
     succeeded = []
+    triangulator = reconstruct.TrackTriangulator(graph, reconstruction)
 
     for track in tracks:
         # Triangulate with 1 as reprojection threshold to avoid excluding tracks because of error.
-        reconstruct.triangulate_track(str(track), graph, reconstruction, {}, 1, min_ray_angle)
+        triangulator.triangulate(str(track), 1, min_ray_angle)
         succeeded.append(True) if str(track) in reconstruction.points else succeeded.append(False)
 
     return np.array(succeeded) if len(succeeded) else np.empty((0,), bool)
@@ -317,7 +319,7 @@ def load_common_tracks(im1, im2, graph):
     :return: An array with rows containing a track id and the corresponding feature id for the first and second image.
     """
     t1, t2 = graph[im1], graph[im2]
-    tc, p1, p2 = matching.common_tracks(graph, im1, im2)
+    tc, p1, p2 = tracking.common_tracks(graph, im1, im2)
 
     common_tracks = []
     for t in tc:
@@ -404,8 +406,8 @@ def create_matches_figure(im1, im2, data, save_figs=False, single_column=False):
     fig, rows, cols = \
         create_four_figure('Matches ({0}): {1} - {2}'.format(data.feature_type().upper(), im1, im2), single_column)
 
-    im1_array = data.image_as_array(im1)
-    im2_array = data.image_as_array(im2)
+    im1_array = data.load_image(im1)
+    im2_array = data.load_image(im2)
 
     # Calculate symmetric matches.
     p1, f1, c1 = data.load_features(im1)
@@ -583,7 +585,8 @@ def plot_bootstrapped_reconstruction(fw, ip, index, p1, p2, robust_tracks, linke
     """
 
     print_reset = redirect_print()
-    reconstruction = reconstruct.bootstrap_reconstruction(data, graph, ip.im1, ip.im2)
+    _, pm1, pm2 = tracking.common_tracks(graph, ip.im1, ip.im2)
+    reconstruction, _ = reconstruct.bootstrap_reconstruction(data, graph, ip.im1, ip.im2, pm1, pm2)
     reset_print(print_reset)
 
     threshold, pixels1, pixels2 = thresholds(ip.im1_array, ip.im2_array, 'triangulation_threshold', 0.004, data)
@@ -638,7 +641,7 @@ def create_tracks_figure(im1, im2, data, save_figs=False, single_column=False):
         create_four_figure('Tracks ({0}): {1} - {2}'.format(data.feature_type().upper(), im1, im2), single_column)
 
     fw = FigureWrapper(fig, rows, cols)
-    ip = ImagePair(im1, im2, data.image_as_array(im1), data.image_as_array(im2))
+    ip = ImagePair(im1, im2, data.load_image(im1), data.load_image(im2))
 
     p1 = load_points(im1, data)
     p2 = load_points(im2, data)
@@ -762,7 +765,7 @@ def create_reconstruction_matches_figure(im1, im2, data, save_figs=False):
                  fontsize=18, fontweight='bold')
 
     fw = FigureWrapper(fig, 2, 1)
-    ip = ImagePair(im1, im2, data.image_as_array(im1), data.image_as_array(im2))
+    ip = ImagePair(im1, im2, data.load_image(im1), data.load_image(im2))
 
     p1 = load_points(im1, data)
     p2 = load_points(im2, data)
@@ -804,7 +807,7 @@ def create_complete_reconstruction_figure(im, data, save_figs=False, single_colu
         print('{0} does not exist in a reconstruction.'.format(im))
         return
 
-    im_array = data.image_as_array(im)
+    im_array = data.load_image(im)
     p = load_points(im, data)
 
     graph = data.load_tracks_graph()
@@ -866,7 +869,7 @@ def create_reprojection_error_figure(im, data, save_figs=False, single_column=Fa
         print('{0} does not exist in a reconstruction.'.format(im))
         return
 
-    im_array = data.image_as_array(im)
+    im_array = data.load_image(im)
     p = load_points(im, data)
 
     graph = data.load_tracks_graph()
