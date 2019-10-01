@@ -709,7 +709,7 @@ void BundleAdjuster::Run() {
   for (auto &a : absolute_positions_) {
 
     //ceres::DynamicCostFunction *cost_function = nullptr;
-    ceres::DynamicAutoDiffCostFunction *cost_function = nullptr;
+    ceres::CostFunction *cost_function = nullptr;
 
     // camera parametrization
     ShotPositionShotParam pos_func(0);
