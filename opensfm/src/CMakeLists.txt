@@ -112,7 +112,7 @@ pybind11_add_module(csfm
 )
 
 #add_library(csfm SHARED  csfm.cc)
-target_link_libraries(csfm 
+target_link_libraries(csfm PRIVATE 
     ${OpenCV_LIBS}
     ${GFLAGS_LIBRARY}
     ${GLOG_LIBRARY}
