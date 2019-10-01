@@ -174,11 +174,6 @@ void DepthmapEstimator::SetPatchSize(int n){
   patch_size_ = n;
 }
 
-
-void DepthmapEstimator::SetMinPatchSD(float sd) {
-  min_patch_variance_ = sd * sd;
-}
-
 void DepthmapEstimator::ComputeBruteForce(DepthmapEstimatorResult *result) {
   AssignMatrices(result);
 
