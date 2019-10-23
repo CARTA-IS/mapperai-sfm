@@ -362,16 +362,17 @@ def _read_ground_control_points_list_line(line, projection, reference_lla, exif)
         reference_lla['altitude'])
 
     # Convert 2D coordinates
-    d = exif[shot_id]
-    coordinates = features.normalized_image_coordinates(
-        np.array([[pixel_x, pixel_y]]), d['width'], d['height'])[0]
+    if shot_id in exif:
+        d = exif[shot_id]
+        coordinates = features.normalized_image_coordinates(
+            np.array([[pixel_x, pixel_y]]), d['width'], d['height'])[0]
 
-    o = types.GroundControlPointObservation()
-    o.lla = np.array([lat, lon, alt])
-    o.coordinates = np.array([x, y, z])
-    o.shot_id = shot_id
-    o.shot_coordinates = coordinates
-    return o
+        o = types.GroundControlPointObservation()
+        o.lla = np.array([lat, lon, alt])
+        o.coordinates = np.array([x, y, z])
+        o.shot_id = shot_id
+        o.shot_coordinates = coordinates
+        return o
 
 
 def _parse_utm_projection_string(line):
@@ -413,7 +414,7 @@ def read_ground_control_points_list(fileobj, reference_lla, exif):
     projection = _parse_projection(lines[0])
     points = [_read_ground_control_points_list_line(line, projection, reference_lla, exif)
               for line in lines[1:]]
-    return points
+    return list(filter(lambda x: x is not None, points))
 
 
 def mkdir_p(path):
