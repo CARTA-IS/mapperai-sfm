@@ -18,6 +18,9 @@ if __name__ == "__main__":
     parser.add_argument('--undistorted',
                         action='store_true',
                         help='export the undistorted reconstruction')
+    parser.add_argument('--geocoord',
+                        action='store_true',
+                        help='export the geocoord reconstruction')
 
     args = parser.parse_args()
 
@@ -40,6 +43,10 @@ if __name__ == "__main__":
         reconstructions = data.load_undistorted_reconstruction()
         track_graph = data.load_undistorted_tracks_graph()
         images = reconstructions[0].shots.keys()
+    elif args.geocoord:
+        reconstructions = data.load_reconstruction('reconstruction.geocoords.json')
+        track_graph = data.load_tracks_graph()
+        images = data.images()
     else:
         reconstructions = data.load_reconstruction()
         track_graph = data.load_tracks_graph()
