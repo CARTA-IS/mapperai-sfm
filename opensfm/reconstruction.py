@@ -1026,8 +1026,10 @@ class ShouldRetriangulate:
 
 def grow_reconstruction(data, graph, reconstruction, images, gcp):
     """Incrementally add shots to an initial reconstruction."""
-    bundle(graph, reconstruction, None, data.config)
+    
     align.align_reconstruction(reconstruction, gcp, data.config)
+    bundle(graph, reconstruction, None, data.config)
+    remove_outliers(graph, reconstruction, data.config)
 
     should_bundle = ShouldBundle(data, reconstruction)
     should_retriangulate = ShouldRetriangulate(data, reconstruction)
@@ -1068,11 +1070,10 @@ def grow_reconstruction(data, graph, reconstruction, images, gcp):
                 step['triangulated_points'] = np_after - np_before
 
                 if should_bundle.should(reconstruction):
+                    align.align_reconstruction(reconstruction, gcp,data.config)
                     brep = bundle(graph, reconstruction, None, data.config)
                     step['bundle'] = brep
                     remove_outliers(graph, reconstruction, data.config)
-                    align.align_reconstruction(reconstruction, gcp,
-                                               data.config)
                     should_bundle.done(reconstruction)
                 else:
                     if data.config['local_bundle_radius'] > 0:
@@ -1082,6 +1083,7 @@ def grow_reconstruction(data, graph, reconstruction, images, gcp):
 
                 if should_retriangulate.should(reconstruction):
                     logger.info("Re-triangulating")
+                    align.align_reconstruction(reconstruction, gcp,data.config)
                     rrep = retriangulate(graph, reconstruction, data.config)
                     step['retriangulation'] = rrep
                     bundle(graph, reconstruction, None, data.config)
@@ -1093,8 +1095,9 @@ def grow_reconstruction(data, graph, reconstruction, images, gcp):
 
     logger.info("-------------------------------------------------------")
 
-    bundle(graph, reconstruction, gcp, data.config)
     align.align_reconstruction(reconstruction, gcp, data.config)
+    bundle(graph, reconstruction, gcp, data.config)
+    remove_outliers(graph, reconstruction, data.config)
     paint_reconstruction(data, graph, reconstruction)
     return reconstruction, report
 
