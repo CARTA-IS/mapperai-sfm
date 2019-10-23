@@ -3,6 +3,8 @@
 from collections import defaultdict
 
 import numpy as np
+import math
+import logging
 
 from opensfm import csfm
 from opensfm import multiview
@@ -53,32 +55,52 @@ def align_reconstruction_similarity(reconstruction, gcp, config):
         return align_reconstruction_orientation_prior_similarity(
             reconstruction, config)
     elif align_method == 'naive':
-        return align_reconstruction_naive_similarity(reconstruction, gcp)
+        return align_reconstruction_naive_similarity(config, reconstruction, gcp)
 
 
-def align_reconstruction_naive_similarity(reconstruction, gcp):
-    """Align with GPS and GCP data using direct 3D-3D matches."""
-    X, Xp = [], []
+def alignment_constraints(config, reconstruction, gcp):
+    """ Gather alignment constraints to be used by checking bundle_use_gcp and bundle_use_gps. """
+
+    X, Xp = [], []    # X : calculated data, Xp : given data.
 
     # Get Ground Control Point correspondences
-    if gcp:
+    if gcp and config['bundle_use_gcp']:
         triangulated, measured = triangulate_all_gcp(reconstruction, gcp)
         X.extend(triangulated)
         Xp.extend(measured)
 
     # Get camera center correspondences
-    for shot in reconstruction.shots.values():
-        X.append(shot.pose.get_origin())
-        Xp.append(shot.metadata.gps_position)
+    if config['bundle_use_gps']:
+        for shot in reconstruction.shots.values():
+            X.append(shot.pose.get_origin())
+            Xp.append(shot.metadata.gps_position)
 
-    if len(X) < 3:
-        return
+    return X, Xp
+
+
+def align_reconstruction_naive_similarity(config, reconstruction, gcp):
+    """Align with GPS and GCP data using direct 3D-3D matches."""
+    X, Xp = alignment_constraints(config, reconstruction, gcp)
+
+    if len(X) == 0:
+        return 1.0, np.identity(3), np.zeros((3))
+
+    # Translation-only case
+    if len(X) == 1:
+        logging.warning('Only 1 constraints. Using translation-only alignment.')
+        t = np.array(Xp[0]) - np.array(X[0])
+        return 1.0, np.identity(3), t
+
+    # Will be up to some unknown rotation
+    if len(X) == 2:
+        logging.warning('Only 2 constraints. Will be up to some unknown rotation.')
+        X.append(X[1])
+        Xp.append(Xp[1])
 
     # Compute similarity Xp = s A X + b
     X = np.array(X)
     Xp = np.array(Xp)
     T = tf.superimposition_matrix(X.T, Xp.T, scale=True)
-
     A, b = T[:3, :3], T[:3, 3]
     s = np.linalg.det(A)**(1. / 3)
     A /= s
@@ -183,7 +205,7 @@ def triangulate_single_gcp(reconstruction, observations):
     reproj_threshold = 0.004
     min_ray_angle_degrees = 2.0
 
-    os, bs = [], []
+    os, bs = [], []      # input camera coord, calculated direction
     for o in observations:
         if o.shot_id in reconstruction.shots:
             shot = reconstruction.shots[o.shot_id]
@@ -195,6 +217,7 @@ def triangulate_single_gcp(reconstruction, observations):
     if len(os) >= 2:
         e, X = csfm.triangulate_bearings_midpoint(
             os, bs, reproj_threshold, np.radians(min_ray_angle_degrees))
+        # print (e, X)
         return X
 
 
@@ -208,7 +231,7 @@ def triangulate_all_gcp(reconstruction, gcp_observations):
     for observations in groups.values():
         x = triangulate_single_gcp(reconstruction, observations)
         if x is not None:
-            triangulated.append(x)
-            measured.append(observations[0].coordinates)
+            triangulated.append(x)                        # calculated with pixel data.
+            measured.append(observations[0].coordinates)  # measured with GPS.
 
     return triangulated, measured
