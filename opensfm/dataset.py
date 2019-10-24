@@ -9,6 +9,8 @@ import networkx as nx
 import cv2
 import yaml
 
+from plyfile import PlyData, PlyElement
+
 from opensfm import io
 from opensfm import config
 from opensfm import context

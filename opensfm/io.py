@@ -6,6 +6,7 @@ import os
 import cv2
 import numpy as np
 import pyproj
+from plyfile import PlyData, PlyElement
 
 from opensfm import features
 from opensfm import geo
@@ -670,13 +671,13 @@ def import_bundler(data_path, bundle_file, list_file, track_file,
 def reconstruction_to_ply(reconstruction, no_cameras=False, no_points=False):
     """Export reconstruction points as a PLY string."""
     vertices = []
-
+    points = []
+    colors = []
     if not no_points:
         for point in reconstruction.points.values():
             p, c = point.coordinates, point.color
-            s = "{} {} {} {} {} {}".format(
-                p[0], p[1], p[2], int(c[0]), int(c[1]), int(c[2]))
-            vertices.append(s)
+            points.append(p)
+            colors.append(c)
 
     if not no_cameras:
         for shot in reconstruction.shots.values():
@@ -684,23 +685,12 @@ def reconstruction_to_ply(reconstruction, no_cameras=False, no_points=False):
             R = shot.pose.get_rotation_matrix()
             for axis in range(3):
                 c = 255 * np.eye(3)[axis]
+                colors.append(c)
                 for depth in np.linspace(0, 1, 10):
                     p = o + depth * R[axis]
-                    s = "{} {} {} {} {} {}".format(
-                        p[0], p[1], p[2], int(c[0]), int(c[1]), int(c[2]))
-                    vertices.append(s)
+                    points.append(p)
 
-    header = [
-        "ply",
-        "format ascii 1.0",
-        "element vertex {}".format(len(vertices)),
-        "property float x",
-        "property float y",
-        "property float z",
-        "property uchar diffuse_red",
-        "property uchar diffuse_green",
-        "property uchar diffuse_blue",
-        "end_header",
-    ]
+    vertices = np.concatenate((points, colors), axis=1)
+    vertices = np.apply_along_axis(lambda x: np.array((x[0], x[1], x[2], x[3], x[4], x[5]), dtype=[('x', 'f4'), ('y', 'f4'), ('z', 'f4'), ('diffuse_red', 'u1'), ('diffuse_green', 'u1'), ('diffuse_blue', 'u1')]), 1, vertices)
 
-    return '\n'.join(header + vertices + [''])
+    return PlyData([PlyElement.describe(vertices, 'vertex')])
