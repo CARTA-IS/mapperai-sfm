@@ -685,11 +685,12 @@ def reconstruction_to_ply(reconstruction, no_cameras=False, no_points=False):
             R = shot.pose.get_rotation_matrix()
             for axis in range(3):
                 c = 255 * np.eye(3)[axis]
-                colors.append(c)
                 for depth in np.linspace(0, 1, 10):
                     p = o + depth * R[axis]
                     points.append(p)
-
+                    colors.append(c)
+    points = np.array(points)
+    colors = np.array(colors)
     vertices = np.concatenate((points, colors), axis=1)
     vertices = np.apply_along_axis(lambda x: np.array((x[0], x[1], x[2], x[3], x[4], x[5]), dtype=[('x', 'f4'), ('y', 'f4'), ('z', 'f4'), ('diffuse_red', 'u1'), ('diffuse_green', 'u1'), ('diffuse_blue', 'u1')]), 1, vertices)
 
