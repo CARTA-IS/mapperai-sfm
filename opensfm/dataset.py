@@ -9,6 +9,8 @@ import networkx as nx
 import cv2
 import yaml
 
+from plyfile import PlyData, PlyElement
+
 from opensfm import io
 from opensfm import config
 from opensfm import context
@@ -497,8 +499,7 @@ class DataSet:
                  no_cameras=False, no_points=False):
         """Save a reconstruction in PLY format."""
         ply = io.reconstruction_to_ply(reconstruction, no_cameras, no_points)
-        with open(self.__ply_file(filename), 'w') as fout:
-            fout.write(ply)
+        ply.write(self.__ply_file(filename))
 
     def __ground_control_points_file(self):
         return os.path.join(self.data_path, 'gcp_list.txt')

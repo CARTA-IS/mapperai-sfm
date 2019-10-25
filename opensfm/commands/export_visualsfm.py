@@ -16,12 +16,18 @@ class Command:
         parser.add_argument('--undistorted',
                             action='store_true',
                             help='export the undistorted reconstruction')
+        parser.add_argument('--geocoord',
+                            action='store_true',
+                            help='export the geocoord reconstruction')
 
     def run(self, args):
         data = dataset.DataSet(args.dataset)
         if args.undistorted:
             reconstructions = data.load_undistorted_reconstruction()
             graph = data.load_undistorted_tracks_graph()
+        elif args.geocoord:
+            reconstructions = data.load_reconstruction('reconstruction.geocoords.json')
+            graph = data.load_tracks_graph()
         else:
             reconstructions = data.load_reconstruction()
             graph = data.load_tracks_graph()

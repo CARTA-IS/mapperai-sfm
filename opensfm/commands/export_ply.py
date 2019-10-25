@@ -19,10 +19,18 @@ class Command:
                             action='store_true',
                             default=False,
                             help='Do not save points')
+        parser.add_argument('--geocoord',
+                        action='store_true',
+                        help='export the geocoord ply')
+
+
 
     def run(self, args):
         data = dataset.DataSet(args.dataset)
-        reconstructions = data.load_reconstruction()
+        if args.geocoord:  # generate georeferenced sparse point cloud.
+            reconstructions = data.load_reconstruction('reconstruction.geocoords.json')
+        else:
+            reconstructions = data.load_reconstruction()
         no_cameras = args.no_cameras
         no_points = args.no_points
 

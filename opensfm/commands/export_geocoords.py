@@ -131,14 +131,16 @@ class Command:
     def _transform_reconstruction(self, reconstruction, transformation):
         """Apply a transformation to a reconstruction in-place."""
         A, b = transformation[:3, :3], transformation[:3, 3]
-        A1 = np.linalg.inv(A)
-        b1 = -np.dot(A1, b)
+        # A1 = np.linalg.inv(A)
+        A1 = np.transpose(A)
+        # b1 = -np.dot(A1, b)
 
         for shot in reconstruction.shots.values():
             R = shot.pose.get_rotation_matrix()
             t = shot.pose.translation
             shot.pose.set_rotation_matrix(np.dot(R, A1))
-            shot.pose.translation = list(np.dot(R, b1) + t)
+            Rnew = shot.pose.get_rotation_matrix()
+            shot.pose.translation = list(-np.dot(Rnew, b) + t)
 
         for point in reconstruction.points.values():
             point.coordinates = list(np.dot(A, point.coordinates) + b)
