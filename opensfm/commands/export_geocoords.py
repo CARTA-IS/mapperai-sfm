@@ -41,6 +41,11 @@ class Command:
             action='store_true',
             default=False)
         parser.add_argument(
+            '--gcp',
+            help='export georeferenced gcps.',
+            action='store_true',
+            default=False)
+        parser.add_argument(
             '--output',
             help='Path of the output file relative to the dataset'
         )
@@ -77,6 +82,10 @@ class Command:
                 self._transform_reconstruction(r, transformation)
             output = args.output or 'reconstruction.geocoords.json'
             data.save_reconstruction(reconstructions, output)
+
+        if args.gcp:
+            output = 'geo_est_gcp.txt'
+            self._transform_gcp(data, transformation, output)
 
         if args.dense:
             output = args.output or 'depthmaps/merged.geocoords.ply'
@@ -144,6 +153,18 @@ class Command:
 
         for point in reconstruction.points.values():
             point.coordinates = list(np.dot(A, point.coordinates) + b)
+
+    def _transform_gcp(self, data, transformation, output):
+        A, b = transformation[:3, :3], transformation[:3, 3]
+        input_path = os.path.join(data.data_path, 'est_gcp.txt')
+        output_path = os.path.join(data.data_path, output)
+        with open(input_path) as fin:
+            with open(output_path, 'w') as fout:
+                for i, line in enumerate(fin):
+                    name, x, y, z = (line.strip()).split(',')
+                    x, y, z = np.dot(A, map(float, [x, y, z])) + b
+                    fout.write("{}, {}, {}, {}\n".format(
+                        name, x, y, z))
 
     def _transform_dense_point_cloud(self, data, transformation, output):
         """Apply a transformation to the merged point cloud."""
