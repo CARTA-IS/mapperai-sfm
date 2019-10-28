@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Incremental reconstruction pipeline"""
-
+import os.path
 import datetime
 import logging
 from itertools import combinations
@@ -86,6 +86,25 @@ def _get_camera_from_bundle(ba, camera):
         camera.focal = c.focal
         camera.k1 = c.k1
         camera.k2 = c.k2
+
+
+def _add_gcp_log(gcp, shots, f):
+    gcp_points = defaultdict(list)
+    for observation in gcp:
+        point_id = 'gcp-' + str(observation.lla)
+        gcp_points[point_id].append(observation)
+    output = ''
+    for point_id in gcp_points:
+        coordinates = triangulate_gcp(gcp_points[point_id], shots)
+        if coordinates is None:
+            observation = gcp_points[point_id][0]
+            if observation.coordinates is not None:
+                coordinates = observation.coordinates
+            else:
+                print('cannot initialize')
+                continue
+        output = output+(point_id+','+str(coordinates[0])+','+str(coordinates[1])+','+str(coordinates[2]))
+        f.write(output)
 
 
 def _add_gcp_bundle(ba, gcp, shots):
@@ -1094,9 +1113,10 @@ def grow_reconstruction(data, graph, reconstruction, images, gcp):
             break
 
     logger.info("-------------------------------------------------------")
-
+    f = open(os.path.join(data.data_path, 'est_gcp.txt'), 'w')
     align.align_reconstruction(reconstruction, gcp, data.config)
     bundle(graph, reconstruction, gcp, data.config)
+    _add_gcp_log(gcp, reconstruction.shots, f)
     remove_outliers(graph, reconstruction, data.config)
     paint_reconstruction(data, graph, reconstruction)
     return reconstruction, report
