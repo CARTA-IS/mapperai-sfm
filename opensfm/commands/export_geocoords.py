@@ -164,7 +164,7 @@ class Command:
                     name, x, y, z = (line.strip()).split(',')
                     x, y, z = np.dot(A, map(float, [x, y, z])) + b
                     fout.write("{}, {}, {}, {}\n".format(
-                        name, x, y, z))
+                        name, y, x, z))
 
     def _transform_dense_point_cloud(self, data, transformation, output):
         """Apply a transformation to the merged point cloud."""
