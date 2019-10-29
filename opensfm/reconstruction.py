@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """Incremental reconstruction pipeline"""
-
+import os.path
 import datetime
 import logging
 from itertools import combinations
+from collections import defaultdict
 
 import numpy as np
 import cv2
@@ -87,6 +88,74 @@ def _get_camera_from_bundle(ba, camera):
         camera.k2 = c.k2
 
 
+def _add_gcp_log(gcp, shots, f):
+    gcp_points = defaultdict(list)
+    for observation in gcp:
+        point_id = 'gcp-' + str(observation.lla)
+        gcp_points[point_id].append(observation)
+    output = ''
+    for point_id in gcp_points:
+        coordinates = triangulate_gcp(gcp_points[point_id], shots)
+        if coordinates is None:
+            observation = gcp_points[point_id][0]
+            if observation.coordinates is not None:
+                coordinates = observation.coordinates
+            else:
+                print('cannot initialize')
+                continue
+        output = output+(point_id+','+str(coordinates[0])+','+str(coordinates[1])+','+str(coordinates[2]))
+        f.write(output)
+
+
+def _add_gcp_bundle(ba, gcp, shots):
+    gcp_points = defaultdict(list)
+    for observation in gcp:
+        point_id = 'gcp-' + str(observation.lla)
+        gcp_points[point_id].append(observation)
+
+        if observation.shot_id in shots:
+            ba.add_ground_control_point_observation(
+                str(observation.shot_id),
+                observation.coordinates[0],
+                observation.coordinates[1],
+                observation.coordinates[2],
+                observation.shot_coordinates[0],
+                observation.shot_coordinates[1])
+
+    for point_id in gcp_points:
+        coordinates = triangulate_gcp(gcp_points[point_id], shots)
+        if coordinates is None:
+            observation = gcp_points[point_id][0]
+            if observation.coordinates is not None:
+                coordinates = observation.coordinates
+            else:
+                print('cannot initialize')
+                continue
+        ba.add_point(point_id, coordinates[0], coordinates[1], coordinates[2], False)
+
+
+def triangulate_gcp(point, shots):
+    """Compute the reconstructed position of a GCP from observations."""
+    reproj_threshold = 1.0
+    min_ray_angle = np.radians(0.1)
+    os, bs, ids = [], [], []
+    for observation in point:
+        shot_id = observation.shot_id
+        if shot_id in shots:
+            shot = shots[shot_id]
+            os.append(shot.pose.get_origin())
+            x = observation.shot_coordinates
+            b = shot.camera.pixel_bearing(np.array(x))
+            r = shot.pose.get_rotation_matrix().T
+            bs.append(r.dot(b))
+            ids.append(shot_id)
+    if len(os) >= 2:
+        # thresholds = len(os) * [reproj_threshold]
+        e, X = csfm.triangulate_bearings_midpoint(
+            os, bs, reproj_threshold, min_ray_angle)
+        return X
+
+
 def bundle(graph, reconstruction, gcp, config):
     """Bundle adjust a reconstruction."""
     fix_cameras = not config['optimize_camera_parameters']
@@ -125,15 +194,7 @@ def bundle(graph, reconstruction, gcp, config):
                                   shot.metadata.gps_dop)
 
     if config['bundle_use_gcp'] and gcp:
-        for observation in gcp:
-            if observation.shot_id in reconstruction.shots:
-                ba.add_ground_control_point_observation(
-                    str(observation.shot_id),
-                    observation.coordinates[0],
-                    observation.coordinates[1],
-                    observation.coordinates[2],
-                    observation.shot_coordinates[0],
-                    observation.shot_coordinates[1])
+        _add_gcp_bundle(ba, gcp, reconstruction.shots)
 
     ba.set_loss_function(config['loss_function'],
                          config['loss_function_threshold'])
@@ -282,15 +343,7 @@ def bundle_local(graph, reconstruction, gcp, central_shot_id, config):
                                   shot.metadata.gps_dop)
 
     if config['bundle_use_gcp'] and gcp:
-        for observation in gcp:
-            if observation.shot_id in interior:
-                ba.add_ground_control_point_observation(
-                    observation.shot_id,
-                    observation.coordinates[0],
-                    observation.coordinates[1],
-                    observation.coordinates[2],
-                    observation.shot_coordinates[0],
-                    observation.shot_coordinates[1])
+        _add_gcp_bundle(ba, gcp, reconstruction.shots)
 
     ba.set_loss_function(config['loss_function'],
                          config['loss_function_threshold'])
@@ -992,8 +1045,10 @@ class ShouldRetriangulate:
 
 def grow_reconstruction(data, graph, reconstruction, images, gcp):
     """Incrementally add shots to an initial reconstruction."""
-    bundle(graph, reconstruction, None, data.config)
+    
     align.align_reconstruction(reconstruction, gcp, data.config)
+    bundle(graph, reconstruction, None, data.config)
+    remove_outliers(graph, reconstruction, data.config)
 
     should_bundle = ShouldBundle(data, reconstruction)
     should_retriangulate = ShouldRetriangulate(data, reconstruction)
@@ -1034,11 +1089,10 @@ def grow_reconstruction(data, graph, reconstruction, images, gcp):
                 step['triangulated_points'] = np_after - np_before
 
                 if should_bundle.should(reconstruction):
+                    align.align_reconstruction(reconstruction, gcp,data.config)
                     brep = bundle(graph, reconstruction, None, data.config)
                     step['bundle'] = brep
                     remove_outliers(graph, reconstruction, data.config)
-                    align.align_reconstruction(reconstruction, gcp,
-                                               data.config)
                     should_bundle.done(reconstruction)
                 else:
                     if data.config['local_bundle_radius'] > 0:
@@ -1048,6 +1102,7 @@ def grow_reconstruction(data, graph, reconstruction, images, gcp):
 
                 if should_retriangulate.should(reconstruction):
                     logger.info("Re-triangulating")
+                    align.align_reconstruction(reconstruction, gcp,data.config)
                     rrep = retriangulate(graph, reconstruction, data.config)
                     step['retriangulation'] = rrep
                     bundle(graph, reconstruction, None, data.config)
@@ -1058,9 +1113,11 @@ def grow_reconstruction(data, graph, reconstruction, images, gcp):
             break
 
     logger.info("-------------------------------------------------------")
-
-    bundle(graph, reconstruction, gcp, data.config)
+    f = open(os.path.join(data.data_path, 'est_gcp.txt'), 'w')
     align.align_reconstruction(reconstruction, gcp, data.config)
+    bundle(graph, reconstruction, gcp, data.config)
+    _add_gcp_log(gcp, reconstruction.shots, f)
+    remove_outliers(graph, reconstruction, data.config)
     paint_reconstruction(data, graph, reconstruction)
     return reconstruction, report
 
