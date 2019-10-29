@@ -3,11 +3,11 @@
 import time
 import logging
 import numpy as np
+import sys
 import cv2
-from opensfm import csfm
 
 from opensfm import context
-
+from opensfm import csfm
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ def resized_image(image, config):
     h, w, _ = image.shape
     size = max(w, h)
     if 0 < max_size < size:
-        dsize = w * max_size / size, h * max_size / size
+        dsize = w * max_size // size, h * max_size // size
         return cv2.resize(image, dsize=dsize, interpolation=cv2.INTER_AREA)
     else:
         return image
@@ -27,9 +27,9 @@ def resized_image(image, config):
 def root_feature(desc, l2_normalization=False):
     if l2_normalization:
         s2 = np.linalg.norm(desc, axis=1)
-        desc = (desc.T/s2).T
+        desc = (desc.T / s2).T
     s = np.sum(desc, 1)
-    desc = np.sqrt(desc.T/s).T
+    desc = np.sqrt(desc.T / s).T
     return desc
 
 
@@ -42,14 +42,14 @@ def root_feature_surf(desc, l2_normalization=False, partial=False):
             s2 = np.linalg.norm(desc, axis=1)
             desc = (desc.T/s2).T
         if partial:
-            ii = np.array([i for i in xrange(64) if (i%4==2 or i%4==3)])
+            ii = np.array([i for i in range(64) if (i % 4 == 2 or i % 4 == 3)])
         else:
             ii = np.arange(64)
         desc_sub = np.abs(desc[:, ii])
         desc_sub_sign = np.sign(desc[:, ii])
         # s_sub = np.sum(desc_sub, 1)  # This partial normalization gives slightly better results for AKAZE surf
         s_sub = np.sum(np.abs(desc), 1)
-        desc_sub = np.sqrt(desc_sub.T/s_sub).T
+        desc_sub = np.sqrt(desc_sub.T / s_sub).T
         desc[:, ii] = desc_sub*desc_sub_sign
     return desc
 
@@ -70,16 +70,10 @@ def denormalized_image_coordinates(norm_coords, width, height):
     return p
 
 
-def mask_and_normalize_features(points, desc, colors, width, height, mask=None):
-    """Remove features outside the mask and normalize image coordinates."""
-
-    if mask is not None:
-        ids = np.array([_in_mask(point, width, height, mask) for point in points])
-        points = points[ids]
-        desc = desc[ids]
-        colors = colors[ids]
-
+def normalize_features(points, desc, colors, width, height):
+    """Normalize feature coordinates and size."""
     points[:, :2] = normalized_image_coordinates(points[:, :2], width, height)
+    points[:, 2:3] /= max(width, height)
     return points, desc, colors
 
 
@@ -192,7 +186,6 @@ def extract_features_akaze(image, config):
     options.descriptor = akaze_descriptor_type(akaze_descriptor_name)
     options.descriptor_size = config['akaze_descriptor_size']
     options.descriptor_channels = config['akaze_descriptor_channels']
-    options.process_size = config['feature_process_size']
     options.dthreshold = config['akaze_dthreshold']
     options.kcontrast_percentile = config['akaze_kcontrast_percentile']
     options.use_isotropic_diffusion = config['akaze_use_isotropic_diffusion']
@@ -254,7 +247,7 @@ def extract_features_orb(image, config):
     return points, desc
 
 
-def extract_features(color_image, config, mask=None):
+def extract_features(color_image, config):
     """Detect features in an image.
 
     The type of feature detected is determined by the ``feature_type``
@@ -292,8 +285,8 @@ def extract_features(color_image, config, mask=None):
     ys = points[:, 1].round().astype(int)
     colors = color_image[ys, xs]
 
-    return mask_and_normalize_features(points, desc, colors,
-                                       image.shape[1], image.shape[0], mask)
+    return normalize_features(points, desc, colors,
+                              image.shape[1], image.shape[0])
 
 
 def build_flann_index(features, config):
@@ -315,3 +308,65 @@ def build_flann_index(features, config):
                         iterations=config['flann_iterations'])
 
     return context.flann_Index(features, flann_params)
+
+
+FEATURES_VERSION = 1
+FEATURES_HEADER = 'OPENSFM_FEATURES_VERSION'
+
+
+def load_features(filepath, config):
+    """ Load features from filename """
+    s = np.load(filepath)
+    version = _features_file_version(s)
+    return getattr(sys.modules[__name__], '_load_features_v%d' % version)(s, config)
+
+
+def _features_file_version(obj):
+    """ Retrieve features file version. Return 0 if none """
+    if FEATURES_HEADER in obj:
+        return obj[FEATURES_HEADER]
+    else:
+        return 0
+
+
+def _load_features_v0(s, config):
+    """ Base version of features file
+
+    Scale (desc[2]) set to reprojection_error_sd by default (legacy behaviour)
+    """
+    feature_type = config['feature_type']
+    if feature_type == 'HAHOG' and config['hahog_normalize_to_uchar']:
+        descriptors = s['descriptors'].astype(np.float32)
+    else:
+        descriptors = s['descriptors']
+    points = s['points']
+    points[:, 2:3] = config['reprojection_error_sd']
+    return points, descriptors, s['colors'].astype(float)
+
+
+def _load_features_v1(s, config):
+    """ Version 1 of features file
+
+    Scale is not properly set higher in the pipeline, default is gone.
+    """
+    feature_type = config['feature_type']
+    if feature_type == 'HAHOG' and config['hahog_normalize_to_uchar']:
+        descriptors = s['descriptors'].astype(np.float32)
+    else:
+        descriptors = s['descriptors']
+    return s['points'], descriptors, s['colors'].astype(float)
+
+
+def save_features(filepath, points, desc, colors, config):
+    feature_type = config['feature_type']
+    if ((feature_type == 'AKAZE' and config['akaze_descriptor'] in ['MLDB_UPRIGHT', 'MLDB'])
+            or (feature_type == 'HAHOG' and config['hahog_normalize_to_uchar'])
+            or (feature_type == 'ORB')):
+        feature_data_type = np.uint8
+    else:
+        feature_data_type = np.float32
+    np.savez_compressed(filepath,
+                        points=points.astype(np.float32),
+                        descriptors=desc.astype(feature_data_type),
+                        colors=colors,
+                        OPENSFM_FEATURES_VERSION=FEATURES_VERSION)

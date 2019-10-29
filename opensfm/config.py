@@ -35,37 +35,53 @@ akaze_use_isotropic_diffusion: no
 # Params for HAHOG
 hahog_peak_threshold: 0.00001
 hahog_edge_threshold: 10
-hahog_normalize_to_uchar: no
+hahog_normalize_to_uchar: yes
 
 # Params for general matching
 lowes_ratio: 0.8              # Ratio test for matches
-preemptive_lowes_ratio: 0.6   # Ratio test for preemptive matches
-matcher_type: FLANN           # FLANN or BRUTEFORCE
+matcher_type: FLANN           # FLANN, BRUTEFORCE, or WORDS
+symmetric_matching: yes       # Match symmetricly or one-way
 
 # Params for FLANN matching
-flann_branching: 16           # See OpenCV doc
+flann_branching: 8           # See OpenCV doc
 flann_iterations: 10          # See OpenCV doc
-flann_checks: 200             # Smaller -> Faster (but might lose good matches)
+flann_checks: 20             # Smaller -> Faster (but might lose good matches)
 
-# Params for preemptive matching
+# Params for BoW matching
+bow_file: bow_hahog_root_uchar_10000.npz
+bow_words_to_match: 50        # Number of words to explore per feature.
+bow_num_checks: 20            # Number of matching features to check.
+bow_matcher_type: FLANN       # Matcher type to assign words to features
+
+# Params for VLAD matching
+vlad_file: bow_hahog_root_uchar_64.npz
+
+# Params for matching
 matching_gps_distance: 150            # Maximum gps distance between two images for matching
 matching_gps_neighbors: 0             # Number of images to match selected by GPS distance. Set to 0 to use no limit (or disable if matching_gps_distance is also 0)
 matching_time_neighbors: 0            # Number of images to match selected by time taken. Set to 0 to disable
 matching_order_neighbors: 0           # Number of images to match selected by image name. Set to 0 to disable
-preemptive_max: 200                   # Number of features to use for preemptive matching
-preemptive_threshold: 0               # If number of matches passes the threshold -> full feature matching
+matching_bow_neighbors: 0             # Number of images to match selected by BoW distance. Set to 0 to disable
+matching_bow_gps_distance: 0          # Maximum GPS distance for preempting images before using selection by BoW distance. Set to 0 to disable
+matching_bow_gps_neighbors: 0         # Number of images (selected by GPS distance) to preempt before using selection by BoW distance. Set to 0 to use no limit (or disable if matching_bow_gps_distance is also 0)
+matching_bow_other_cameras: False     # If True, BoW image selection will use N neighbors from the same camera + N neighbors from any different camera.
+matching_vlad_neighbors: 0            # Number of images to match selected by VLAD distance. Set to 0 to disable
+matching_vlad_gps_distance: 0          # Maximum GPS distance for preempting images before using selection by VLAD distance. Set to 0 to disable
+matching_vlad_gps_neighbors: 0         # Number of images (selected by GPS distance) to preempt before using selection by VLAD distance. Set to 0 to use no limit (or disable if matching_vlad_gps_distance is also 0)
+matching_vlad_other_cameras: False     # If True, VLAD image selection will use N neighbors from the same camera + N neighbors from any different camera.
+matching_use_filters: False           # If True, removes static matches using ad-hoc heuristics
 
 # Params for geometric estimation
-robust_matching_threshold: 0.004      # Outlier threshold for fundamental matrix estimation as portion of image width
-robust_matching_min_match: 20         # Minimum number of matches to be considered as an edge in the match graph
-five_point_algo_threshold: 0.004      # Outlier threshold (in pixels) for essential matrix estimation
-five_point_algo_min_inliers: 20       # Minimum number of inliers for considering a two view reconstruction valid.
-triangulation_threshold: 0.006        # Outlier threshold (in pixels) for accepting a triangulated point.
-triangulation_min_ray_angle: 1.0
-resection_threshold: 0.004            # Outlier threshold (in pixels) for camera resection.
-resection_min_inliers: 10             # Minimum number of resection inliers to accept it.
-retriangulation: no
-retriangulation_ratio: 1.25
+robust_matching_threshold: 0.004        # Outlier threshold for fundamental matrix estimation as portion of image width
+robust_matching_calib_threshold: 0.004  # Outlier threshold for essential matrix estimation during matching in radians
+robust_matching_min_match: 20           # Minimum number of matches to accept matches between two images
+five_point_algo_threshold: 0.004        # Outlier threshold for essential matrix estimation during incremental reconstruction in radians
+five_point_algo_min_inliers: 20         # Minimum number of inliers for considering a two view reconstruction valid
+triangulation_threshold: 0.006          # Outlier threshold for accepting a triangulated point in radians
+triangulation_min_ray_angle: 1.0        # Minimum angle between views to accept a triangulated point
+triangulation_type: FULL                # Triangulation type : either considering all rays (FULL), or sing a RANSAC variant (ROBUST)
+resection_threshold: 0.004              # Outlier threshold for resection in radians
+resection_min_inliers: 10               # Minimum number of resection inliers to accept it
 
 # Params for track creation
 min_track_length: 2             # Minimum number of features/images per track
@@ -81,14 +97,20 @@ radial_distorsion_k2_sd: 0.01   # The standard deviation of the second radial di
 radial_distorsion_k3_sd: 0.01   # The standard deviation of the third radial distortion parameter
 radial_distorsion_p1_sd: 0.01   # The standard deviation of the first tangential distortion parameter
 radial_distorsion_p2_sd: 0.01   # The standard deviation of the second tangential distortion parameter
+bundle_outlier_filtering_type: FIXED    # Type of threshold for filtering outlier : either fixed value (FIXED) or based on actual distribution (AUTO)
+bundle_outlier_auto_ratio: 3.0          # For AUTO filtering type, projections with larger reprojection than ratio-times-mean, are removed
+bundle_outlier_fixed_threshold: 0.006   # For FIXED filtering type, projections with larger reprojection error after bundle adjustment are removed
+optimize_camera_parameters: yes         # Optimize internal camera parameters during bundle
 
-bundle_outlier_threshold: 0.006 # Points with larger reprojection error after bundle adjustment are removed
-bundle_interval: 0              # Bundle after adding 'bundle_interval' cameras
-bundle_new_points_ratio: 1.2    # Bundle when (new points) / (bundled points) > bundle_new_points_ratio
-optimize_camera_parameters: yes # Optimize internal camera parameters during bundle
-local_bundle_radius: 0          # Max image graph distance for images to be included in local bundle adjustment
+retriangulation: yes                # Retriangulate all points from time to time
+retriangulation_ratio: 1.2          # Retriangulate when the number of points grows by this ratio
+bundle_interval: 999999             # Bundle after adding 'bundle_interval' cameras
+bundle_new_points_ratio: 1.2        # Bundle when the number of points grows by this ratio
+local_bundle_radius: 3              # Max image graph distance for images to be included in local bundle adjustment
+local_bundle_min_common_points: 20  # Minimum number of common points betwenn images to be considered neighbors
+local_bundle_max_shots: 30          # Max number of shots to optimize during local bundle adjustment
 
-save_partial_reconstructions: no
+save_partial_reconstructions: no    # Save reconstructions at every iteration
 
 # Params for GPS alignment
 use_altitude_tag: no                  # Use or ignore EXIF altitude tag
@@ -109,16 +131,23 @@ nav_turn_view_threshold: 40           # Maximum difference of angles in degrees 
 nav_vertical_threshold: 20            # Maximum vertical angle difference in motion and viewing direction in degrees
 nav_rotation_threshold: 30            # Maximum general rotation in degrees between cameras for steps
 
+# Params for image undistortion
+undistorted_image_format: jpg         # Format in which to save the undistorted images
+undistorted_image_max_size: 100000    # Max width and height of the undistorted image
+
 # Params for depth estimation
 depthmap_method: PATCH_MATCH          # Raw depthmap computation algorithm (PATCH_MATCH, BRUTE_FORCE, PATCH_MATCH_SAMPLE)
 depthmap_patch_size: 7                # patch size
 depthmap_resolution: 640              # Resolution of the depth maps
 depthmap_num_neighbors: 10            # Number of neighboring views
-depthmap_num_matching_views: 2        # Number of neighboring views used for each depthmaps
+depthmap_num_matching_views: 6        # Number of neighboring views used for each depthmaps
+depthmap_min_depth: 0                 # Minimum depth in meters.  Set to 0 to auto-infer from the reconstruction.
+depthmap_max_depth: 0                 # Maximum depth in meters.  Set to 0 to auto-infer from the reconstruction.
 depthmap_patchmatch_iterations: 3     # Number of PatchMatch iterations to run
-depthmap_min_patch_sd: 5.0            # Patches with lower standard deviation are ignored
-depthmap_min_correlation_score: 0.7   # Minimum correlation score to accept a depth value
-depthmap_same_depth_threshold: 0.005  # Threshold to measure depth closeness
+depthmap_patch_size: 7                # Size of the correlation patch
+depthmap_min_patch_sd: 1.0            # Patches with lower standard deviation are ignored
+depthmap_min_correlation_score: 0.1   # Minimum correlation score to accept a depth value
+depthmap_same_depth_threshold: 0.01   # Threshold to measure depth closeness
 depthmap_min_consistent_views: 3      # Min number of views that should reconstruct a point for it to be valid
 depthmap_save_debug_files: no         # Save debug files with partial reconstruction results
 
@@ -126,18 +155,17 @@ depthmap_save_debug_files: no         # Save debug files with partial reconstruc
 processes: 1                  # Number of threads to use
 
 # Params for submodel split and merge
-submodel_size: 80                                                   # Average number of images per submodel
-submodel_overlap: 30.0                                              # Radius of the overlapping region between submodels
-submodels_relpath: "submodels"                                      # Relative path to the submodels directory
-submodel_relpath_template: "submodels/submodel_%04d"                # Template to generate the relative path to a submodel directory
-submodel_images_relpath_template: "submodels/submodel_%04d/images"  # Template to generate the relative path to a submodel images directory
-submodel_use_symlinks: yes                                          # Symlink global features and matches to be reused on each submodel
+submodel_size: 80                                                    # Average number of images per submodel
+submodel_overlap: 30.0                                               # Radius of the overlapping region between submodels
+submodels_relpath: "submodels"                                       # Relative path to the submodels directory
+submodel_relpath_template: "submodels/submodel_%04d"                 # Template to generate the relative path to a submodel directory
+submodel_images_relpath_template: "submodels/submodel_%04d/images"   # Template to generate the relative path to a submodel images directory
 '''
 
 
 def default_config():
     """Return default configuration"""
-    return yaml.load(default_config_yaml)
+    return yaml.safe_load(default_config_yaml)
 
 
 def load_config(filepath):
@@ -146,7 +174,7 @@ def load_config(filepath):
 
     if os.path.isfile(filepath):
         with open(filepath) as fin:
-            new_config = yaml.load(fin)
+            new_config = yaml.safe_load(fin)
         if new_config:
             for k, v in new_config.items():
                 config[k] = v

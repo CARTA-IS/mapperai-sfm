@@ -3,6 +3,7 @@ from timeit import default_timer as timer
 
 import numpy as np
 
+from opensfm import bow
 from opensfm import dataset
 from opensfm import features
 from opensfm import io
@@ -27,7 +28,7 @@ class Command:
 
         start = timer()
         processes = data.config['processes']
-        parallel_map(detect, arguments, processes)
+        parallel_map(detect, arguments, processes, 1)
         end = timer()
         with open(data.profile_log(), 'a') as fout:
             fout.write('detect_features: {0}\n'.format(end - start))
@@ -51,42 +52,55 @@ class Command:
 
 
 def detect(args):
+    image, data = args
+
     log.setup()
 
-    image, data = args
+    need_words = data.config['matcher_type'] == 'WORDS' or data.config['matching_bow_neighbors'] > 0
+    has_words = not need_words or data.words_exist(image)
+    has_features = data.features_exist(image)
+
+    if has_features and has_words:
+        logger.info('Skip recomputing {} features for image {}'.format(
+            data.feature_type().upper(), image))
+        return
+
     logger.info('Extracting {} features for image {}'.format(
         data.feature_type().upper(), image))
 
-    if not data.feature_index_exists(image):
-        start = timer()
-        mask = data.mask_as_array(image)
-        if mask is not None:
-            logger.info('Found mask to apply for image {}'.format(image))
-        preemptive_max = data.config['preemptive_max']
-        p_unsorted, f_unsorted, c_unsorted = features.extract_features(
-            data.image_as_array(image), data.config, mask)
-        if len(p_unsorted) == 0:
-            return
+    start = timer()
 
-        size = p_unsorted[:, 2]
-        order = np.argsort(size)
-        p_sorted = p_unsorted[order, :]
-        f_sorted = f_unsorted[order, :]
-        c_sorted = c_unsorted[order, :]
-        p_pre = p_sorted[-preemptive_max:]
-        f_pre = f_sorted[-preemptive_max:]
-        data.save_features(image, p_sorted, f_sorted, c_sorted)
-        data.save_preemptive_features(image, p_pre, f_pre)
+    p_unmasked, f_unmasked, c_unmasked = features.extract_features(
+        data.load_image(image), data.config)
 
-        if data.config['matcher_type'] == 'FLANN':
-            index = features.build_flann_index(f_sorted, data.config)
-            data.save_feature_index(image, index)
+    fmask = data.load_features_mask(image, p_unmasked)
 
-        end = timer()
-        report = {
-            "image": image,
-            "num_features": len(p_sorted),
-            "wall_time": end - start,
-        }
-        data.save_report(io.json_dumps(report),
-                         'features/{}.json'.format(image))
+    p_unsorted = p_unmasked[fmask]
+    f_unsorted = f_unmasked[fmask]
+    c_unsorted = c_unmasked[fmask]
+
+    if len(p_unsorted) == 0:
+        logger.warning('No features found in image {}'.format(image))
+        return
+
+    size = p_unsorted[:, 2]
+    order = np.argsort(size)
+    p_sorted = p_unsorted[order, :]
+    f_sorted = f_unsorted[order, :]
+    c_sorted = c_unsorted[order, :]
+    data.save_features(image, p_sorted, f_sorted, c_sorted)
+
+    if need_words:
+        bows = bow.load_bows(data.config)
+        n_closest = data.config['bow_words_to_match']
+        closest_words = bows.map_to_words(
+            f_sorted, n_closest, data.config['bow_matcher_type'])
+        data.save_words(image, closest_words)
+
+    end = timer()
+    report = {
+        "image": image,
+        "num_features": len(p_sorted),
+        "wall_time": end - start,
+    }
+    data.save_report(io.json_dumps(report), 'features/{}.json'.format(image))

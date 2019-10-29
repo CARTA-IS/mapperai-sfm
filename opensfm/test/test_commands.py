@@ -1,7 +1,7 @@
 import argparse
 
 from opensfm import commands
-import data_generation
+from opensfm.test import data_generation
 
 
 def run_command(command, args):
@@ -21,6 +21,10 @@ def test_run_all(tmpdir):
         commands.create_tracks,
         commands.reconstruct,
         commands.mesh,
+        commands.undistort,
+        commands.compute_depthmaps,
+        commands.export_ply,
+        commands.export_visualsfm,
     ]
 
     for module in run_all_commands:

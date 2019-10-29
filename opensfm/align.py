@@ -1,6 +1,7 @@
 """Tools to align a reconstruction to GPS and GCP data."""
 
-from collections import defaultdict
+import logging
+import math
 
 import numpy as np
 import math
@@ -9,6 +10,8 @@ import logging
 from opensfm import csfm
 from opensfm import multiview
 from opensfm import transformations as tf
+
+logger = logging.getLogger(__name__)
 
 
 def align_reconstruction(reconstruction, gcp, config):
@@ -51,9 +54,10 @@ def align_reconstruction_similarity(reconstruction, gcp, config):
      - orientation_prior: assumes a particular camera orientation
     """
     align_method = config['align_method']
+    if align_method == 'auto':
+        align_method = detect_alignment_constraints(config, reconstruction, gcp)
     if align_method == 'orientation_prior':
-        return align_reconstruction_orientation_prior_similarity(
-            reconstruction, config)
+        return align_reconstruction_orientation_prior_similarity(reconstruction, config, gcp)
     elif align_method == 'naive':
         return align_reconstruction_naive_similarity(config, reconstruction, gcp)
 
@@ -74,8 +78,36 @@ def alignment_constraints(config, reconstruction, gcp):
         for shot in reconstruction.shots.values():
             X.append(shot.pose.get_origin())
             Xp.append(shot.metadata.gps_position)
-
     return X, Xp
+
+
+def detect_alignment_constraints(config, reconstruction, gcp):
+    """ Automatically pick the best alignment method, depending
+    if alignment data such as GPS/GCP is aligned on a single-line or not.
+
+    """
+
+    X, Xp = alignment_constraints(config, reconstruction, gcp)
+    if len(X) < 3:
+        return 'orientation_prior'
+
+    X = np.array(X)
+    X = X - np.average(X, axis=0)
+    evalues, _ = np.linalg.eig(X.T.dot(X))
+
+    evalues = np.array(sorted(evalues))
+    ratio_1st_2nd = math.fabs(evalues[2]/evalues[1])
+
+    epsilon_abs = 1e-10
+    epsilon_ratio = 5e3
+    is_line = sum(evalues < epsilon_abs) > 1 or ratio_1st_2nd > epsilon_ratio
+    if is_line:
+        logger.warning('Shots and/or GCPs are aligned on a single-line. Using %s prior',
+                       config['align_orientation_prior'])
+        return 'orientation_prior'
+    else:
+        logger.info('Shots and/or GCPs are well-conditionned. Using naive 3D-3D alignment.')
+        return 'naive'
 
 
 def align_reconstruction_naive_similarity(config, reconstruction, gcp):
@@ -85,15 +117,24 @@ def align_reconstruction_naive_similarity(config, reconstruction, gcp):
     if len(X) == 0:
         return 1.0, np.identity(3), np.zeros((3))
 
-    # Translation-only case
-    if len(X) == 1:
-        logging.warning('Only 1 constraints. Using translation-only alignment.')
+
+    # Translation-only case, either : 
+    #  - a single value
+    #  - identical values
+    same_values = (np.linalg.norm(np.std(Xp, axis=0)) < 1e-10)
+    single_value = (len(X) == 1)
+    if single_value:
+        logger.warning('Only 1 constraints. Using translation-only alignment.')
+    if same_values:
+        logger.warning('GPS/GCP data seems to have identical values. Using translation-only alignment.')
+    if same_values or single_value:
         t = np.array(Xp[0]) - np.array(X[0])
         return 1.0, np.identity(3), t
 
     # Will be up to some unknown rotation
     if len(X) == 2:
-        logging.warning('Only 2 constraints. Will be up to some unknown rotation.')
+
+        logger.warning('Only 2 constraints. Will be up to some unknown rotation.')
         X.append(X[1])
         Xp.append(Xp[1])
 
@@ -107,7 +148,7 @@ def align_reconstruction_naive_similarity(config, reconstruction, gcp):
     return s, A, b
 
 
-def align_reconstruction_orientation_prior_similarity(reconstruction, config):
+def align_reconstruction_orientation_prior_similarity(reconstruction, config, gcp):
     """Align with GPS data assuming particular a camera orientation.
 
     In some cases, using 3D-3D matches directly fails to find proper
@@ -122,41 +163,23 @@ def align_reconstruction_orientation_prior_similarity(reconstruction, config):
      - horizontal: assumes cameras are looking towards the horizon
      - vertical: assumes cameras are looking down towards the ground
     """
-    X, Xp = [], []
-    orientation_type = config['align_orientation_prior']
-    onplane, verticals = [], []
-    for shot in reconstruction.shots.values():
-        X.append(shot.pose.get_origin())
-        Xp.append(shot.metadata.gps_position)
-        R = shot.pose.get_rotation_matrix()
-        x, y, z = get_horizontal_and_vertical_directions(
-            R, shot.metadata.orientation)
-        if orientation_type == 'no_roll':
-            onplane.append(x)
-            verticals.append(-y)
-        elif orientation_type == 'horizontal':
-            onplane.append(x)
-            onplane.append(z)
-            verticals.append(-y)
-        elif orientation_type == 'vertical':
-            onplane.append(x)
-            onplane.append(y)
-            verticals.append(-z)
-
+    X, Xp = alignment_constraints(config, reconstruction, gcp)
     X = np.array(X)
     Xp = np.array(Xp)
 
-    # Estimate ground plane.
-    p = multiview.fit_plane(X - X.mean(axis=0), onplane, verticals)
+    if len(X) < 1:
+        return 1.0, np.identity(3), np.zeros((3))
+
+    p = estimate_ground_plane(reconstruction, config)
     Rplane = multiview.plane_horizontalling_rotation(p)
     X = Rplane.dot(X.T).T
 
     # Estimate 2d similarity to align to GPS
-    if (len(X) < 2 or
-            X.std(axis=0).max() < 1e-8 or     # All points are the same.
-            Xp.std(axis=0).max() < 0.01):      # All GPS points are the same.
-        # Set the arbitrary scale proportional to the number of cameras.
-        s = len(X) / max(1e-8, X.std(axis=0).max())
+    single_shot = len(X) < 2
+    same_shots = (X.std(axis=0).max() < 1e-8 or     # All points are the same.
+                  Xp.std(axis=0).max() < 0.01)      # All GPS points are the same.
+    if single_shot or same_shots:
+        s = 1.0
         A = Rplane
         b = Xp.mean(axis=0) - X.mean(axis=0)
     else:
@@ -172,6 +195,41 @@ def align_reconstruction_orientation_prior_similarity(reconstruction, config):
         ])
     return s, A, b
 
+
+def estimate_ground_plane(reconstruction, config):
+    """Estimate ground plane orientation.
+    
+    It assumes cameras are all at a similar height and uses the
+    align_orientation_prior option to enforce cameras to look
+    horizontally or vertically.
+    """
+    orientation_type = config['align_orientation_prior']
+    onplane, verticals = [], []
+    for shot in reconstruction.shots.values():
+        R = shot.pose.get_rotation_matrix()
+        x, y, z = get_horizontal_and_vertical_directions(
+            R, shot.metadata.orientation)
+        if orientation_type == 'no_roll':
+            onplane.append(x)
+            verticals.append(-y)
+        elif orientation_type == 'horizontal':
+            onplane.append(x)
+            onplane.append(z)
+            verticals.append(-y)
+        elif orientation_type == 'vertical':
+            onplane.append(x)
+            onplane.append(y)
+            verticals.append(-z)
+
+    ground_points = []
+    for shot in reconstruction.shots.values():
+        ground_points.append(shot.pose.get_origin())
+    ground_points = np.array(ground_points)
+    ground_points -= ground_points.mean(axis=0)
+    
+    plane = multiview.fit_plane(ground_points, onplane, verticals)
+    return plane
+    
 
 def get_horizontal_and_vertical_directions(R, orientation):
     """Get orientation vectors from camera rotation matrix and orientation tag.
@@ -196,7 +254,7 @@ def get_horizontal_and_vertical_directions(R, orientation):
         return -R[1, :], -R[0, :], -R[2, :]
     if orientation == 8:
         return R[1, :], -R[0, :], R[2, :]
-    print ('ERROR unknown orientation {0}. Using 1 instead'.format(orientation))
+    logger.error('unknown orientation {0}. Using 1 instead'.format(orientation))
     return R[0, :], R[1, :], R[2, :]
 
 
@@ -210,28 +268,23 @@ def triangulate_single_gcp(reconstruction, observations):
         if o.shot_id in reconstruction.shots:
             shot = reconstruction.shots[o.shot_id]
             os.append(shot.pose.get_origin())
-            b = shot.camera.pixel_bearing(np.asarray(o.shot_coordinates))
+            b = shot.camera.pixel_bearing(np.asarray(o.projection))
             r = shot.pose.get_rotation_matrix().T
             bs.append(r.dot(b))
 
     if len(os) >= 2:
-        e, X = csfm.triangulate_bearings_midpoint(
-            os, bs, reproj_threshold, np.radians(min_ray_angle_degrees))
-        # print (e, X)
+        thresholds = len(os) * [reproj_threshold]
+        angle = np.radians(min_ray_angle_degrees)
+        e, X = csfm.triangulate_bearings_midpoint(os, bs, thresholds, angle)
         return X
 
 
-def triangulate_all_gcp(reconstruction, gcp_observations):
+def triangulate_all_gcp(reconstruction, gcp):
     """Group and triangulate Ground Control Points seen in 2+ images."""
-    groups = defaultdict(list)
-    for o in gcp_observations:
-        groups[tuple(o.lla)].append(o)
-
     triangulated, measured = [], []
-    for observations in groups.values():
-        x = triangulate_single_gcp(reconstruction, observations)
+    for point in gcp:
+        x = triangulate_single_gcp(reconstruction, point.observations)
         if x is not None:
             triangulated.append(x)                        # calculated with pixel data.
-            measured.append(observations[0].coordinates)  # measured with GPS.
-
+            measured.append(point.coordinates)  # measured with GPS.
     return triangulated, measured

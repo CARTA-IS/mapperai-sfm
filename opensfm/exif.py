@@ -1,13 +1,19 @@
+from __future__ import division
+
 import datetime
 import exifread
 import logging
 import xmltodict as x2d
+
+from six import string_types
 
 from opensfm.sensors import sensor_data
 from opensfm import types
 
 
 logger = logging.getLogger(__name__)
+
+inch_in_mm = 25.4
 
 
 def eval_frac(value):
@@ -37,7 +43,7 @@ def get_tag_as_float(tags, key):
 
 
 def compute_focal(focal_35, focal, sensor_width, sensor_string):
-    if focal_35 > 0:
+    if focal_35 is not None and focal_35 > 0:
         focal_ratio = focal_35 / 36.0  # 35mm film produces 36x24mm pictures.
     else:
         if not sensor_width:
@@ -80,7 +86,7 @@ def camera_id_(make, model, width, height, projection_type, focal):
 
 
 def extract_exif_from_file(fileobj):
-    if isinstance(fileobj, (str, unicode)):
+    if isinstance(fileobj, string_types):
         with open(fileobj) as f:
             exif_data = EXIF(f)
     else:
@@ -128,13 +134,27 @@ class EXIF:
 
     def extract_image_size(self):
         # Image Width and Image Height
-        if ('EXIF ExifImageWidth' in self.tags and
-                'EXIF ExifImageLength' in self.tags):
+        if ('EXIF ExifImageWidth' in self.tags and # PixelXDimension
+            'EXIF ExifImageLength' in self.tags):  # PixelYDimension
             width, height = (int(self.tags['EXIF ExifImageWidth'].values[0]),
                              int(self.tags['EXIF ExifImageLength'].values[0]))
+        elif ('Image ImageWidth' in self.tags and
+              'Image ImageLength' in self.tags):
+            width, height = (int(self.tags['Image ImageWidth'].values[0]),
+                             int(self.tags['Image ImageLength'].values[0]))
         else:
             width, height = -1, -1
         return width, height
+
+    def _decode_make_model(self, value):
+        """Python 2/3 compatible decoding of make/model field."""
+        if hasattr(value, 'decode'):
+            try:
+                return value.decode('utf-8')
+            except UnicodeDecodeError:
+                return 'unknown'
+        else:
+            return value
 
     def extract_make(self):
         # Camera make and model
@@ -144,10 +164,7 @@ class EXIF:
             make = self.tags['Image Make'].values
         else:
             make = 'unknown'
-        try:
-            return make.decode('utf-8')
-        except UnicodeDecodeError:
-            return 'unknown'
+        return self._decode_make_model(make)
 
     def extract_model(self):
         if 'EXIF LensModel' in self.tags:
@@ -156,10 +173,7 @@ class EXIF:
             model = self.tags['Image Model'].values
         else:
             model = 'unknown'
-        try:
-            return model.decode('utf-8')
-        except UnicodeDecodeError:
-            return 'unknown'
+        return self._decode_make_model(model)
 
     def extract_projection_type(self):
         gpano = get_gpano_from_xmp(self.xmp)
@@ -170,9 +184,40 @@ class EXIF:
         focal_35, focal_ratio = compute_focal(
             get_tag_as_float(self.tags, 'EXIF FocalLengthIn35mmFilm'),
             get_tag_as_float(self.tags, 'EXIF FocalLength'),
-            get_tag_as_float(self.tags, 'EXIF CCD width'),
+            self.extract_sensor_width(),
             sensor_string(make, model))
         return focal_35, focal_ratio
+
+    def extract_sensor_width(self):
+        """Compute sensor with from width and resolution."""
+        if ('EXIF FocalPlaneResolutionUnit' not in self.tags or
+                'EXIF FocalPlaneXResolution' not in self.tags):
+            return None
+        resolution_unit = self.tags['EXIF FocalPlaneResolutionUnit'].values[0]
+        mm_per_unit = self.get_mm_per_unit(resolution_unit)
+        if not mm_per_unit:
+            return None
+        pixels_per_unit = get_tag_as_float(self.tags, 'EXIF FocalPlaneXResolution')
+        units_per_pixel = 1 / pixels_per_unit
+        width_in_pixels = self.extract_image_size()[0]
+        return width_in_pixels * units_per_pixel * mm_per_unit
+
+    def get_mm_per_unit(self,resolution_unit):
+        """Length of a resolution unit in millimeters.
+
+        Uses the values from the EXIF specs in
+        https://www.sno.phy.queensu.ca/~phil/exiftool/TagNames/EXIF.html
+
+        Args:
+            resolution_unit: the resolution unit value given in the EXIF
+        """
+        if resolution_unit == 2:    # inch
+            return inch_in_mm
+        elif resolution_unit == 3:  # cm
+            return 10
+        else:
+            logger.warning('Unknown EXIF resolution unit value: {}'.format(resolution_unit))
+            return None
 
     def extract_orientation(self):
         orientation = 1
@@ -193,8 +238,25 @@ class EXIF:
             reflon = 'E'
         return reflon, reflat
 
+    def extract_dji_lon_lat(self):
+        lon = self.xmp[0]['@drone-dji:Longitude']
+        lat = self.xmp[0]['@drone-dji:Latitude']
+        lon_number = float(lon[1:])
+        lat_number = float(lat[1:])
+        lon_number = lon_number if lon[0] == '+' else -lon_number
+        lat_number = lat_number if lat[0] == '+' else -lat_number
+        return lon_number, lat_number
+
+    def extract_dji_altitude(self):
+        return float(self.xmp[0]['@drone-dji:AbsoluteAltitude'])
+
+    def has_dji_xmp(self):
+        return (len(self.xmp) > 0) and ('@drone-dji:Latitude' in self.xmp[0])
+
     def extract_lon_lat(self):
-        if 'GPS GPSLatitude' in self.tags:
+        if self.has_dji_xmp():
+            lon, lat = self.extract_dji_lon_lat()
+        elif 'GPS GPSLatitude' in self.tags:
             reflon, reflat = self.extract_ref_lon_lat()
             lat = gps_to_decimal(self.tags['GPS GPSLatitude'].values, reflat)
             lon = gps_to_decimal(self.tags['GPS GPSLongitude'].values, reflon)
@@ -203,7 +265,9 @@ class EXIF:
         return lon, lat
 
     def extract_altitude(self):
-        if 'GPS GPSAltitude' in self.tags:
+        if self.has_dji_xmp():
+            altitude = self.extract_dji_altitude()
+        elif 'GPS GPSAltitude' in self.tags:
             altitude = eval_frac(self.tags['GPS GPSAltitude'].values[0])
         else:
             altitude = None
@@ -314,13 +378,29 @@ def hard_coded_calibration(exif):
         if 'hdr-as200v' == model:
             return {'focal': 0.55, 'k1': -0.30, 'k2': 0.08}
         elif 'hdr-as300' in model:
-            return {"focal": 0.405, "k1": -0.205, "k2": 0.075}
+            return {"focal":  0.3958, "k1": -0.1496, "k2": 0.0201}
 
 
 def focal_ratio_calibration(exif):
-    if exif['focal_ratio']:
+    if exif.get('focal_ratio'):
         return {
             'focal': exif['focal_ratio'],
+            'k1': 0.0,
+            'k2': 0.0,
+            'p1': 0.0,
+            'p2': 0.0,
+            'k3': 0.0
+        }
+
+
+def focal_xy_calibration(exif):
+    focal = exif.get('focal_x', exif.get('focal_ratio'))
+    if focal:
+        return {
+            'focal_x': focal,
+            'focal_y': focal,
+            'c_x': exif.get('c_x', 0.0),
+            'c_y': exif.get('c_y', 0.0),
             'k1': 0.0,
             'k2': 0.0,
             'p1': 0.0,
@@ -344,7 +424,7 @@ def camera_from_exif_metadata(metadata, data):
     '''
     Create a camera object from exif metadata
     '''
-    pt = metadata.get('projection_type', 'perspective')
+    pt = metadata.get('projection_type', 'perspective').lower()
     if pt == 'perspective':
         calib = (hard_coded_calibration(metadata)
                  or focal_ratio_calibration(metadata)
@@ -363,9 +443,37 @@ def camera_from_exif_metadata(metadata, data):
         return camera
     elif pt == 'brown':
         calib = (hard_coded_calibration(metadata)
-                 or focal_ratio_calibration(metadata)
+                 or focal_xy_calibration(metadata)
                  or default_calibration(data))
         camera = types.BrownPerspectiveCamera()
+        camera.id = metadata['camera']
+        camera.width = metadata['width']
+        camera.height = metadata['height']
+        camera.projection_type = pt
+        camera.focal_x = calib['focal_x']
+        camera.focal_y = calib['focal_y']
+        camera.c_x = calib['c_x']
+        camera.c_y = calib['c_y']
+        camera.k1 = calib['k1']
+        camera.k2 = calib['k2']
+        camera.p1 = calib['p1']
+        camera.p2 = calib['p2']
+        camera.k3 = calib['k3']
+        camera.focal_x_prior = calib['focal_x']
+        camera.focal_y_prior = calib['focal_y']
+        camera.c_x_prior = calib['c_x']
+        camera.c_y_prior = calib['c_y']
+        camera.k1_prior = calib['k1']
+        camera.k2_prior = calib['k2']
+        camera.p1_prior = calib['p1']
+        camera.p2_prior = calib['p2']
+        camera.k3_prior = calib['k3']
+        return camera
+    elif pt == 'fisheye':
+        calib = (hard_coded_calibration(metadata)
+                 or focal_ratio_calibration(metadata)
+                 or default_calibration(data))
+        camera = types.FisheyeCamera()
         camera.id = metadata['camera']
         camera.width = metadata['width']
         camera.height = metadata['height']
@@ -373,9 +481,6 @@ def camera_from_exif_metadata(metadata, data):
         camera.focal = calib['focal']
         camera.k1 = calib['k1']
         camera.k2 = calib['k2']
-        camera.p1 = calib['p1']
-        camera.p2 = calib['p2']
-        camera.k3 = calib['k3']
         camera.focal_prior = calib['focal']
         camera.k1_prior = calib['k1']
         camera.k2_prior = calib['k2']

@@ -6,8 +6,11 @@
 !data/berlin/config.yaml
 !data/berlin/gcp_list.txt
 !data/berlin/images
+!data/lund/images
 !doc
+!LICENSE
 !opensfm
+!README.md
 !requirements.txt
 !setup.cfg
 !setup.py
@@ -15,8 +18,6 @@
 
 # Picking exceptions
 doc/build
-*/*.so
-*/*.pyc
-*/*/*.pyc
-*/__pycache__
-*/*/__pycache__
+**/*.so
+**/*.pyc
+**/__pycache__

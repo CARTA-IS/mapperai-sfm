@@ -30,11 +30,11 @@ class Command:
             self._cluster_images(meta_data, data.config['submodel_size'])
 
         self._add_cluster_neighbors(meta_data, data.config['submodel_overlap'])
+        self._save_clusters_geojson(meta_data)
         self._save_cluster_neighbors_geojson(meta_data)
 
         meta_data.create_submodels(
-            meta_data.load_clusters_with_neighbors(),
-            not data.config['submodel_use_symlinks'])
+            meta_data.load_clusters_with_neighbors())
 
     def _create_image_list(self, data, meta_data):
         ills = []
@@ -77,7 +77,7 @@ class Command:
             centers[label, 1] += lon
             centers_count[label] += 1
 
-        images = np.array(images).reshape((len(images), 1))
+        images = np.array(images)
         positions = np.array(positions, np.float32)
         labels = np.array(labels)
         centers /= centers_count
@@ -98,6 +98,9 @@ class Command:
         K = int(np.ceil(K))
 
         labels, centers = tools.kmeans(positions, K)[1:]
+
+        images = images.ravel()
+        labels = labels.ravel()
 
         meta_data.save_clusters(images, positions, labels, centers)
 
@@ -137,3 +140,29 @@ class Command:
             "features": features
         }
         meta_data.save_cluster_with_neighbors_geojson(geojson)
+
+    def _save_clusters_geojson(self, meta_data):
+        image_coordinates = {}
+        for image, lat, lon in meta_data.images_with_gps():
+            image_coordinates[image] = [lon, lat]
+
+        features = []
+        images, positions, labels, centers = meta_data.load_clusters()
+        for image, label in zip(images, labels):
+            features.append({
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": image_coordinates[image]
+                },
+                "properties": {
+                    "name": image,
+                    "submodel": int(label)  # cluster_idx
+                }
+            })
+        geojson = {
+            "type": "FeatureCollection",
+            "features": features
+        }
+        meta_data.save_clusters_geojson(geojson)
+
