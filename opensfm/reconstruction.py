@@ -99,6 +99,7 @@ def _add_gcp_log(gcp, shots, f):
         point_id = 'gcp-' + point.id
         coordinates = triangulate_gcp(point, shots)
         if coordinates is None:
+            continue
             if point.coordinates is not None:
                 coordinates = point.coordinates
             else:
@@ -125,7 +126,7 @@ def triangulate_gcp(point, shots):
             bs.append(r.dot(b))
             ids.append(shot_id)
 
-    if len(os) >= 2:
+    if len(os) >= 3:
         thresholds = len(os) * [reproj_threshold]
         e, X = csfm.triangulate_bearings_midpoint(
             os, bs, thresholds, min_ray_angle)
@@ -139,6 +140,7 @@ def _add_gcp_to_bundle(ba, gcp, shots):
 
         coordinates = triangulate_gcp(point, shots)
         if coordinates is None:
+            continue
             if point.coordinates is not None:
                 coordinates = point.coordinates
             else:

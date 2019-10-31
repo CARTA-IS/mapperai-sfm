@@ -272,7 +272,7 @@ def triangulate_single_gcp(reconstruction, observations):
             r = shot.pose.get_rotation_matrix().T
             bs.append(r.dot(b))
 
-    if len(os) >= 2:
+    if len(os) >= 3:
         thresholds = len(os) * [reproj_threshold]
         angle = np.radians(min_ray_angle_degrees)
         e, X = csfm.triangulate_bearings_midpoint(os, bs, thresholds, angle)
