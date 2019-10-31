@@ -404,15 +404,16 @@ def _read_gcp_list_lines(lines, projection, reference, exif):
             points[key] = point
 
         # Convert 2D coordinates
-        d = exif[shot_id]
-        coordinates = features.normalized_image_coordinates(
-            np.array([[pixel_x, pixel_y]]), d['width'], d['height'])[0]
+        if shot_id in exif:
+            d = exif[shot_id]
+            coordinates = features.normalized_image_coordinates(
+                np.array([[pixel_x, pixel_y]]), d['width'], d['height'])[0]
 
-        o = types.GroundControlPointObservation()
+            o = types.GroundControlPointObservation()
 
-        o.shot_id = shot_id
-        o.projection = coordinates
-        point.observations.append(o)
+            o.shot_id = shot_id
+            o.projection = coordinates
+            point.observations.append(o)
 
     return list(points.values())
 

@@ -2,10 +2,9 @@ import json
 
 from opensfm import context
 
-from opensfm import io
 
-with io.open_rt(context.SENSOR) as f:
-    sensor_data = io.json_load(f)
+with open(context.SENSOR, 'rb') as f:
+    sensor_data = json.loads(f.read())
 
 # Convert model types to lower cases for easier query
 

@@ -94,19 +94,18 @@ def _get_camera_from_bundle(ba, camera):
 
 
 def _add_gcp_log(gcp, shots, f):
+    output = ''
     for point in gcp:
         point_id = 'gcp-' + point.id
-
         coordinates = triangulate_gcp(point, shots)
         if coordinates is None:
-            observation = gcp_points[point_id][0]
-            if observation.coordinates is not None:
-                coordinates = observation.coordinates
+            if point.coordinates is not None:
+                coordinates = point.coordinates
             else:
                 print('cannot initialize')
                 continue
-        output = output+(point_id+','+str(coordinates[0])+','+str(coordinates[1])+','+str(coordinates[2]))
-        f.write(output)
+        output = output+(point_id+','+str(coordinates[0])+','+str(coordinates[1])+','+str(coordinates[2])+'\n')
+    f.write(output)
 
 
 def triangulate_gcp(point, shots):
