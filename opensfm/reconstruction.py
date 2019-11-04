@@ -1116,7 +1116,8 @@ def grow_reconstruction(data, graph, reconstruction, images, gcp):
     f = open(os.path.join(data.data_path, 'est_gcp.txt'), 'w')
     align.align_reconstruction(reconstruction, gcp, data.config)
     bundle(graph, reconstruction, gcp, data.config)
-    _add_gcp_log(gcp, reconstruction.shots, f)
+    if data.config['bundle_use_gcp'] and gcp:
+        _add_gcp_log(gcp, reconstruction.shots, f)
     remove_outliers(graph, reconstruction, data.config)
     paint_reconstruction(data, graph, reconstruction)
     return reconstruction, report
