@@ -103,7 +103,7 @@ def _add_gcp_log(gcp, shots, f):
             else:
                 print('cannot initialize')
                 continue
-        output = output+(point_id+','+str(coordinates[0])+','+str(coordinates[1])+','+str(coordinates[2]))
+        output = output+(point_id+','+str(coordinates[0])+','+str(coordinates[1])+','+str(coordinates[2])+'\n')
         f.write(output)
 
 
