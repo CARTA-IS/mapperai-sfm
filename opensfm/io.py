@@ -498,7 +498,6 @@ def read_ground_control_points(fileobj, reference):
             point.observations.append(o)
         points.append(point)
     return points
->>>>>>> upstream/master
 
 
 def write_ground_control_points(gcp, fileobj, reference):
