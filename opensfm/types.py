@@ -82,9 +82,13 @@ class Pose(object):
         """
         R = np.array(rotation_matrix, dtype=float)
         if not permissive:
-          if not np.isclose(np.linalg.det(R), 1):
+          #if not np.isclose(np.linalg.det(R), 1):
+          if not np.isclose(np.linalg.det(R), 1, rtol=1e-04):
               raise ValueError("Determinant not 1")
-          if not np.allclose(np.linalg.inv(R), R.T):
+          #if not np.allclose(np.linalg.inv(R), R.T):
+          if not np.allclose(np.linalg.inv(R), R.T, rtol=1e-02):
+              print(np.linalg.inv(R))
+              print(R.T)
               raise ValueError("Not orthogonal")
         self.rotation = cv2.Rodrigues(R)[0].ravel()
 
