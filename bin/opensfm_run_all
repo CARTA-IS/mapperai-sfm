@@ -14,4 +14,8 @@ $PYTHON $DIR/opensfm create_tracks $1
 $PYTHON $DIR/opensfm reconstruct $1
 $PYTHON $DIR/opensfm mesh $1
 $PYTHON $DIR/opensfm undistort $1
-$PYTHON $DIR/opensfm compute_depthmaps $1
+$PYTHON $DIR/opensfm export_geocoords $1 --transformation --proj '+proj=tmerc +lat_0=38 +lon_0=127 +k=1 +x_0=200000 +y_0=600000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs' --reconstruction
+$PYTHON $DIR/opensfm export_ply $1
+$PYTHON $DIR/export_bundler $1
+$PYTHON $DIR/opensfm export_visualsfm $1
+#$PYTHON $DIR/opensfm compute_depthmaps $1
