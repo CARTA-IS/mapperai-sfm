@@ -22,7 +22,7 @@ def samples_generator_random_count(count):
 
 
 def samples_generator_interval(start, length, interval, interval_noise):
-    samples = np.linspace(start/length, 1, num=length/interval)
+    samples = np.linspace(start/length, 1, num=int(length/interval))
     samples += np.random.normal(0.0,
                                 float(interval_noise)/float(length),
                                 samples.shape)
@@ -115,19 +115,7 @@ def perturb_points(points, sigmas):
 
 
 def generate_exifs(reconstruction, gps_noise, speed_ms=10):
-    """
-    Return extracted exif information, as dictionary, usually with fields:
-
-    ================  =====  ===================================
-    Field             Type   Description
-    ================  =====  ===================================
-    width             int    Width of image, in pixels
-    height            int    Height of image, in pixels
-    focal_prior       float  Focal length (real) / sensor width
-    ================  =====  ===================================
-
-    :param image: Image name, with extension (i.e. 123.jpg)
-    """
+    """Generate fake exif metadata from the reconstruction."""
     previous_pose = None
     previous_time = 0
     exifs = {}
@@ -137,7 +125,7 @@ def generate_exifs(reconstruction, gps_noise, speed_ms=10):
         exif = {}
         exif['width'] = shot.camera.width
         exif['height'] = shot.camera.height
-        exif['focal_prior'] = shot.camera.focal_prior
+        exif['focal_ratio'] = shot.camera.focal
         exif['camera'] = str(shot.camera.id)
         exif['make'] = str(shot.camera.id)
 

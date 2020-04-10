@@ -3,7 +3,7 @@ import os
 
 import numpy as np
 
-from opensfm import csfm
+from opensfm import pydense
 from opensfm import dataset
 from opensfm import io
 
@@ -19,14 +19,15 @@ class Command:
 
     def run(self, args):
         data = dataset.DataSet(args.dataset)
-        reconstructions = data.load_undistorted_reconstruction()
-        graph = data.load_undistorted_tracks_graph()
+        udata = dataset.UndistortedDataSet(data, 'undistorted')
+        reconstructions = udata.load_undistorted_reconstruction()
+        graph = udata.load_undistorted_tracks_graph()
 
         if reconstructions:
-            self.export(reconstructions[0], graph, data)
+            self.export(reconstructions[0], graph, udata, data)
 
-    def export(self, reconstruction, graph, data):
-        exporter = csfm.OpenMVSExporter()
+    def export(self, reconstruction, graph, udata, data):
+        exporter = pydense.OpenMVSExporter()
         for camera in reconstruction.cameras.values():
             if camera.projection_type == 'perspective':
                 w, h = camera.width, camera.height
@@ -39,7 +40,7 @@ class Command:
 
         for shot in reconstruction.shots.values():
             if shot.camera.projection_type == 'perspective':
-                image_path = data._undistorted_image_file(shot.id)
+                image_path = udata._undistorted_image_file(shot.id)
                 exporter.add_shot(
                     str(os.path.abspath(image_path)),
                     str(shot.id),
@@ -53,5 +54,5 @@ class Command:
             coordinates = np.array(point.coordinates, dtype=np.float64)
             exporter.add_point(coordinates, shots)
 
-        io.mkdir_p(data.data_path + '/openmvs')
-        exporter.export(data.data_path + '/openmvs/scene.mvs')
+        io.mkdir_p(udata.data_path + '/openmvs')
+        exporter.export(udata.data_path + '/openmvs/scene.mvs')

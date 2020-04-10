@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import os.path, sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -16,7 +16,6 @@ from opensfm import features
 from opensfm import matching
 from opensfm import tracking
 from opensfm import io
-from opensfm import csfm
 import opensfm.reconstruction as reconstruct
 
 
@@ -536,7 +535,7 @@ def plot_opencv_find_homography(fw, ip, index, tracks, track_points1, track_poin
 
 
 def plot_two_view_reconstruction(fw, ip, index, track_points1, track_points2, data):
-    """ Plot inliers and outliers of the tracks from csfm two view reconstruction.
+    """ Plot inliers and outliers of the tracks from two view reconstruction.
 
     :param fw: Figure wrapper.
     :param ip: Image pair.
@@ -551,7 +550,8 @@ def plot_two_view_reconstruction(fw, ip, index, track_points1, track_points2, da
     camera2 = cameras[data.load_exif(ip.im2)['camera']]
 
     threshold, pixels1, pixels2 = thresholds(ip.im1_array, ip.im2_array, 'five_point_algo_threshold', 0.006, data)
-    R, t, inliers = reconstruct.two_view_reconstruction(track_points1, track_points2, camera1, camera2, threshold)
+    iterations = data.config['five_point_refine_rec_iterations']
+    R, t, inliers = reconstruct.two_view_reconstruction(track_points1, track_points2, camera1, camera2, threshold, iterations)
 
     inliers1 = track_points1[inliers, :]
     inliers2 = track_points2[inliers, :]
@@ -963,7 +963,6 @@ if __name__ == "__main__":
 
     print('Plotting matches for {0} - {1}...'.format(image1, image2))
     create_matches_figure(image1, image2, ds, save, single)
-
 
     print('Plotting tracks for {0} - {1}...'.format(image1, image2))
     create_tracks_figure(image1, image2, ds, save, single)

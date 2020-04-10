@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import itertools
 import numpy as np
 import scipy.spatial
@@ -19,6 +19,8 @@ def triangle_mesh(shot_id, r, graph, data):
     if shot.camera.projection_type in ['perspective', 'brown']:
         return triangle_mesh_perspective(shot_id, r, graph)
     elif shot.camera.projection_type == 'fisheye':
+        return triangle_mesh_fisheye(shot_id, r, graph)
+    elif shot.camera.projection_type == 'dual':
         return triangle_mesh_fisheye(shot_id, r, graph)
     elif shot.camera.projection_type in ['equirectangular', 'spherical']:
         return triangle_mesh_equirectangular(shot_id, r, graph)
@@ -124,7 +126,7 @@ def triangle_mesh_fisheye(shot_id, r, graph):
                 face[1] >= num_circle_points or
                 face[2] >= num_circle_points)
 
-    faces = filter(good_face, faces)
+    faces = list(filter(good_face, faces))
 
     return vertices, faces
 

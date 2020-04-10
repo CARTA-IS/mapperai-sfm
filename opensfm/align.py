@@ -4,10 +4,8 @@ import logging
 import math
 
 import numpy as np
-import math
-import logging
 
-from opensfm import csfm
+from opensfm import pygeometry
 from opensfm import multiview
 from opensfm import transformations as tf
 
@@ -57,9 +55,15 @@ def align_reconstruction_similarity(reconstruction, gcp, config):
     if align_method == 'auto':
         align_method = detect_alignment_constraints(config, reconstruction, gcp)
     if align_method == 'orientation_prior':
-        return align_reconstruction_orientation_prior_similarity(reconstruction, config, gcp)
+        res = align_reconstruction_orientation_prior_similarity(reconstruction, config, gcp)
     elif align_method == 'naive':
-        return align_reconstruction_naive_similarity(config, reconstruction, gcp)
+        res = align_reconstruction_naive_similarity(config, reconstruction, gcp)
+
+    s, A, b = res
+    if (s == 0) or np.isnan(A).any() or np.isnan(b).any():
+        logger.warning('Computation of alignment similarity (%s) is degenerate.' % align_method)
+        return None
+    return res
 
 
 def alignment_constraints(config, reconstruction, gcp):
@@ -78,6 +82,7 @@ def alignment_constraints(config, reconstruction, gcp):
         for shot in reconstruction.shots.values():
             X.append(shot.pose.get_origin())
             Xp.append(shot.metadata.gps_position)
+
     return X, Xp
 
 
@@ -106,7 +111,7 @@ def detect_alignment_constraints(config, reconstruction, gcp):
                        config['align_orientation_prior'])
         return 'orientation_prior'
     else:
-        logger.info('Shots and/or GCPs are well-conditionned. Using naive 3D-3D alignment.')
+        logger.info('Shots and/or GCPs are well-conditioned. Using naive 3D-3D alignment.')
         return 'naive'
 
 
@@ -116,7 +121,6 @@ def align_reconstruction_naive_similarity(config, reconstruction, gcp):
 
     if len(X) == 0:
         return 1.0, np.identity(3), np.zeros((3))
-
 
     # Translation-only case, either : 
     #  - a single value
@@ -133,7 +137,6 @@ def align_reconstruction_naive_similarity(config, reconstruction, gcp):
 
     # Will be up to some unknown rotation
     if len(X) == 2:
-
         logger.warning('Only 2 constraints. Will be up to some unknown rotation.')
         X.append(X[1])
         Xp.append(Xp[1])
@@ -142,6 +145,7 @@ def align_reconstruction_naive_similarity(config, reconstruction, gcp):
     X = np.array(X)
     Xp = np.array(Xp)
     T = tf.superimposition_matrix(X.T, Xp.T, scale=True)
+
     A, b = T[:3, :3], T[:3, 3]
     s = np.linalg.det(A)**(1. / 3)
     A /= s
@@ -275,7 +279,7 @@ def triangulate_single_gcp(reconstruction, observations):
     if len(os) >= 3:
         thresholds = len(os) * [reproj_threshold]
         angle = np.radians(min_ray_angle_degrees)
-        e, X = csfm.triangulate_bearings_midpoint(os, bs, thresholds, angle)
+        e, X = pygeometry.triangulate_bearings_midpoint(os, bs, thresholds, angle)
         return X
 
 

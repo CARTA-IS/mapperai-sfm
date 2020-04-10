@@ -11,19 +11,24 @@ from six import iteritems
 
 from plyfile import PlyData, PlyElement
 
-from opensfm import csfm
+from opensfm import pydense
 from opensfm import io
 from opensfm import log
 from opensfm import tracking
 from opensfm.context import parallel_map
 
 
-
 logger = logging.getLogger(__name__)
 
 
 def compute_depthmaps(data, graph, reconstruction):
-    """Compute and refine depthmaps for all shots."""
+    """Compute and refine depthmaps for all shots.
+
+    Args:
+        data: an UndistortedDataset
+        graph: the tracks graph
+        reconstruction: the undistorted reconstruction
+    """
     logger.info('Computing neighbors')
     config = data.config
     processes = config['processes']
@@ -96,8 +101,7 @@ def compute_depthmap(arguments):
         return
     logger.info("Computing depthmap for image {0} with {1}".format(shot.id, method))
 
-    de = csfm.DepthmapEstimator()
-    de.set_patch_size(data.config['depthmap_patch_size'])
+    de = pydense.DepthmapEstimator()
     de.set_depth_range(min_depth, max_depth, 100)
     de.set_patchmatch_iterations(data.config['depthmap_patchmatch_iterations'])
     de.set_patch_size(data.config['depthmap_patch_size'])
@@ -160,7 +164,7 @@ def clean_depthmap(arguments):
         return
     logger.info("Cleaning depthmap for image {}".format(shot.id))
 
-    dc = csfm.DepthmapCleaner()
+    dc = pydense.DepthmapCleaner()
     dc.set_same_depth_threshold(data.config['depthmap_same_depth_threshold'])
     dc.set_min_consistent_views(data.config['depthmap_min_consistent_views'])
     add_views_to_depth_cleaner(data, neighbors, dc)
@@ -201,7 +205,7 @@ def prune_depthmap(arguments):
         return
     logger.info("Pruning depthmap for image {}".format(shot.id))
 
-    dp = csfm.DepthmapPruner()
+    dp = pydense.DepthmapPruner()
     dp.set_same_depth_threshold(data.config['depthmap_same_depth_threshold'])
     add_views_to_depth_pruner(data, neighbors, dp)
     points, normals, colors, labels, detections = dp.prune()
@@ -210,8 +214,9 @@ def prune_depthmap(arguments):
     data.save_pruned_depthmap(shot.id, points, normals, colors, labels, detections)
 
     if data.config['depthmap_save_debug_files']:
-        ply = point_cloud_to_ply(points, normals, colors)
+        ply = point_cloud_to_ply(points, normals, colors, labels, detections)
         ply.write(data._depthmap_path()+'/'+shot.id+'pruned.npz.ply')
+
 
 def merge_depthmaps(data, reconstruction):
     """Merge depthmaps into a single point cloud."""
@@ -242,9 +247,8 @@ def merge_depthmaps(data, reconstruction):
     labels = np.concatenate(labels)
     detections = np.concatenate(detections)
 
-    ply = point_cloud_to_ply(points, normals, colors)
+    ply = point_cloud_to_ply(points, normals, colors, labels, detections)
     ply.write(data._depthmap_path() + '/merged.ply')
-
 
 
 def add_views_to_depth_estimator(data, neighbors, de):
@@ -438,7 +442,7 @@ def depthmap_to_ply(shot, depth, image):
     return io.points_to_ply_string(vertices)
 
 
-def point_cloud_to_ply(points, normals, colors, labels, detections, fp):
+def point_cloud_to_ply(points, normals, colors, labels, detections):
     """Export depthmap points as a PLY string"""
 
     vertices = np.concatenate((points, normals), axis=1)

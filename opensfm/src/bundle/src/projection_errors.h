@@ -29,10 +29,17 @@ template <typename T>
 void WorldToCameraCoordinates(const T* const shot,
                               const T world_point[3],
                               T camera_point[3]) {
-  ceres::AngleAxisRotatePoint(shot + BA_SHOT_RX, world_point, camera_point);
-  camera_point[0] += shot[BA_SHOT_TX];
-  camera_point[1] += shot[BA_SHOT_TY];
-  camera_point[2] += shot[BA_SHOT_TZ];
+  const T pt[3] = {
+    world_point[0] - shot[BA_SHOT_TX],
+    world_point[1] - shot[BA_SHOT_TY],
+    world_point[2] - shot[BA_SHOT_TZ]
+  };
+  const T Rt[3] = {
+    -shot[BA_SHOT_RX],
+    -shot[BA_SHOT_RY],
+    -shot[BA_SHOT_RZ]
+  };
+  ceres::AngleAxisRotatePoint(Rt, pt, camera_point);
 }
 
 template <typename T>
@@ -163,7 +170,35 @@ void FisheyeProject(const T* const camera,
   T s = focal * theta_d / l;
 
   projection[0] = s * x;
-  projection[1] = s * y;
+  projection[1] = s * y; 
+}
+
+template <typename T>
+void DualProject(const T* const camera, const T point[3], T projection[2]) {
+  const T& focal = camera[BA_DUAL_CAMERA_FOCAL];
+  const T& transition = camera[BA_DUAL_CAMERA_TRANSITION];
+  const T& k1 = camera[BA_DUAL_CAMERA_K1];
+  const T& k2 = camera[BA_DUAL_CAMERA_K2];
+  const T& x = point[0];
+  const T& y = point[1];
+  const T& z = point[2];
+
+  T l = sqrt(x * x + y * y);
+  T theta = atan2(l, z);
+  T x_fish = theta / l * x;
+  T y_fish = theta / l * y;
+
+  T x_persp = point[0] / point[2];
+  T y_persp = point[1] / point[2];
+
+  T x_dual = transition*x_persp + (1.0-transition)*x_fish;
+  T y_dual = transition*y_persp + (1.0-transition)*y_fish;
+
+  T r2 = x_dual * x_dual + y_dual * y_dual;
+  T distortion = T(1.0) + r2  * (k1 + r2 * k2);
+
+  projection[0] = focal * distortion * x_dual;
+  projection[1] = focal * distortion * y_dual;
 }
 
 struct FisheyeReprojectionError {
@@ -183,6 +218,36 @@ struct FisheyeReprojectionError {
 
     T predicted[2];
     FisheyeProject(camera, camera_point, predicted);
+
+    // The error is the difference between the predicted and observed position.
+    residuals[0] = T(scale_) * (predicted[0] - T(observed_x_));
+    residuals[1] = T(scale_) * (predicted[1] - T(observed_y_));
+
+    return true;
+  }
+
+  double observed_x_;
+  double observed_y_;
+  double scale_;
+};
+
+struct DualReprojectionError {
+  DualReprojectionError(double observed_x, double observed_y, double std_deviation)
+      : observed_x_(observed_x)
+      , observed_y_(observed_y)
+      , scale_(1.0 / std_deviation)
+  {}
+
+  template <typename T>
+  bool operator()(const T* const camera,
+                  const T* const shot,
+                  const T* const point,
+                  T* residuals) const {
+    T camera_point[3];
+    WorldToCameraCoordinates(shot, point, camera_point);
+
+    T predicted[2];
+    DualProject(camera, camera_point, predicted);
 
     // The error is the difference between the predicted and observed position.
     residuals[0] = T(scale_) * (predicted[0] - T(observed_x_));
