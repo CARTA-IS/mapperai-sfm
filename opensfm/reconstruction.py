@@ -484,7 +484,7 @@ def get_image_metadata(data, image):
             lat, lon, alt,
             reflla['latitude'], reflla['longitude'], reflla['altitude'])
         metadata.gps_position = [x, y, z]
-        metadata.gps_dop = exif['gps'].get('dop', 15.0)
+        metadata.gps_dop = exif['gps'].get('dop', data.config['default_gps_dop'] )
     else:
         metadata.gps_position = [0.0, 0.0, 0.0]
         metadata.gps_dop = 999999.0

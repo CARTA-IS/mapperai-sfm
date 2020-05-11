@@ -95,6 +95,7 @@ use_altitude_tag: no                  # Use or ignore EXIF altitude tag
 align_method: orientation_prior       # orientation_prior or naive
 align_orientation_prior: horizontal   # horizontal, vertical or no_roll
 bundle_use_gps: yes                   # Enforce GPS position in bundle adjustment
+default_gps_dop: 15                   # Default GPS DOP value for bundle adjustment
 bundle_use_gcp: no                    # Enforce Ground Control Point position in bundle adjustment
 
 # Params for navigation graph
