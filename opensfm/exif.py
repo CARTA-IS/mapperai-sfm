@@ -103,6 +103,7 @@ def get_xmp(fileobj):
         xdict = xdict.get('x:xmpmeta', {})
         xdict = xdict.get('rdf:RDF', {})
         xdict = xdict.get('rdf:Description', {})
+
         if isinstance(xdict, list):
             return xdict
         else:
@@ -164,6 +165,15 @@ class EXIF:
     def extract_projection_type(self):
         gpano = get_gpano_from_xmp(self.xmp)
         return gpano.get('GPano:ProjectionType', 'perspective')
+
+    def extract_rtk_flag(self):
+        dewarpflag = self.xmp.get('@drone-dji:DewarpFlag', -1)
+        #rtk = xdict.get('@drone-dji:RtkFlag', -1)
+        if dewarpflag == -1:
+            is_rtk = False
+        else:
+            is_rtk = True
+        return is_rtk
 
     def extract_focal(self):
         make, model = self.extract_make(), self.extract_model()
@@ -250,6 +260,7 @@ class EXIF:
     def extract_exif(self):
         width, height = self.extract_image_size()
         projection_type = self.extract_projection_type()
+        rtk_flag = self.extract_rtk_flag()
         focal_35, focal_ratio = self.extract_focal()
         make, model = self.extract_make(), self.extract_model()
         orientation = self.extract_orientation()
@@ -264,7 +275,8 @@ class EXIF:
             'focal_ratio': focal_ratio,
             'orientation': orientation,
             'capture_time': capture_time,
-            'gps': geo
+            'gps': geo,
+            'rtk_flag': rtk_flag
         }
         d['camera'] = camera_id(d)
         return d

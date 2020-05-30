@@ -32,6 +32,10 @@ class Command:
             # EXIF data in Image
             d = exif.extract_exif_from_file(data.load_image(image))
 
+            # Check RTK
+            if d['rtk_flag']:
+                data.config['default_gps_dop'] = 1
+
             # Image Height and Image Width
             if d['width'] <= 0 or not data.config['use_exif_size']:
                 d['height'], d['width'] = data.image_as_array(image).shape[:2]
